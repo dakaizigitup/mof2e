@@ -18,7 +18,7 @@ clusterscope==0.0.18
 contourpy @ file:///home/conda/feedstock_root/build_artifacts/contourpy_1744743067588/work
 cryptography==46.0.3
 cycler @ file:///home/conda/feedstock_root/build_artifacts/cycler_1733332471406/work
-e3nn==0.5.8
+e3nn==0.6.0
 et_xmlfile==2.0.0
 fairchem-core==1.10.0
 filelock==3.20.0
