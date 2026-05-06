@@ -1,0 +1,40 @@
+trainer: ocp
+
+dataset:
+  train:
+    format: lmdb
+    src: /home/dell/autodl-tmp/lorafair/data/is2r/validate_null
+    key_mapping:
+      y_relaxed: energy
+    transforms:
+      normalizer:
+        energy:
+          mean: -0.5249277949333191
+          stdev: 0.943034291267395
+
+  val:
+    format: lmdb # 确保格式匹配
+    src: /home/dell/autodl-tmp/lorafair/data/is2r/filtered_val
+
+logger: wandb
+
+outputs:
+  energy:
+    shape: 1
+    level: system
+
+
+loss_functions:
+  - energy:
+      fn: mae
+      coefficient: 4
+
+evaluation_metrics:
+  metrics:
+    energy:
+      - mae
+      - mse
+      - energy_within_threshold
+
+  primary_metric: energy_mae
+

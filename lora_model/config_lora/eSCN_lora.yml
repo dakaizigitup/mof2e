@@ -1,0 +1,75 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/base_lora.yml
+
+trainer: ocp_lora
+
+
+model:
+  name: escn_lora
+  num_layers: 12
+  max_neighbors: 20
+  cutoff: 8.0  # 12.0
+  sphere_channels: 128
+  hidden_channels: 256
+  lmax_list: [6]
+  mmax_list: [2]
+  num_sphere_samples: 128
+  distance_function: "gaussian"
+  regress_forces: False
+  use_pbc: True
+  basis_width_scalar: 2.0
+  otf_graph: True
+
+  max_num_elements: 100
+
+optim:
+  batch_size: 1
+  eval_batch_size: 4
+  num_workers: 8
+  lr_initial: 0.0008
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: True
+    weight_decay: 0.2
+  eval_every: 5000
+  lr_gamma: 0.3
+  lr_milestones: # epochs at which lr_initial <- lr_initial * lr_gamma
+    - 218750
+    - 281250
+    - 343750
+  warmup_steps: 100
+  warmup_factor: 0.2
+  max_epochs: 24
+  clip_grad_norm: 20
+  ema_decay: 0.999
+
+  lora:
+    optimizer: AdamW
+    optimizer_params:
+      weight_decay: 0.03  # 适中的正则化，防止过拟合
+      betas: [0.9, 0.999]
+    scheduler: LambdaLR
+    scheduler_params:
+      lambda_type: cosine
+      warmup_factor: 0.1  # 从10%开始，比原来的0.2更保守
+      warmup_epochs: 0.1  # 保持0.1（30个epoch中3个用于warmup，约3-4个epoch）
+      lr_min_factor: 0.05  # 提高到0.05（最终学习率=1e-5 × 0.05 = 5e-7）
+    lr_initial: 1e-5  # 保持1e-5，30个epoch内需要足够的学习率
+    
+  mof_encoder:
+    optimizer: AdamW
+    optimizer_params:
+      weight_decay: 0.05
+      betas: [0.9, 0.999]
+    scheduler: LambdaLR
+    scheduler_params:
+      lambda_type: cosine
+      warmup_factor: 0.1
+      warmup_epochs: 0.2
+      lr_min_factor: 0.01
+    lr_initial: 5e-5  # 比LoRA大一些
+    
+    
+
+
+    

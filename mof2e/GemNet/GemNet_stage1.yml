@@ -1,0 +1,108 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/GemNet/base.yml
+
+# GemNet-OC Stage 1：nm 条件注入，无全局特征，完整训练
+# 两阶段流程的第一阶段：让模型充分学习局部结构 + nm 条件
+#
+# Stage 2 会从本阶段的 best_checkpoint.pt 加载并冻结前 2 个 block
+#
+# 运行命令：
+#   python main.py --config mof2e/GemNet/GemNet_stage1.yml --mode train
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+
+model:
+  name: gemnet_oc_global_weighted_energy_head
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 32
+  num_global_out_layers: 1
+
+  backbone:
+    name: gemnet_oc_global
+
+    # --- nm / condition ---
+    base_nm_dim: 2
+    condition_hidden_dim: 64
+    nm_max_count: 15.0
+
+    # --- atom extra features: ON（AtomPropertyEncoderV2）---
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    # --- global features: OFF（Stage 1 不加全局）---
+    use_mof_global_features: false
+
+    # --- FiLM adapter ---
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    global_inject_layer: 2
+    freeze_first_n_layers: 0
+
+    # --- GemNet-OC params ---
+    num_spherical: 5
+    num_radial: 32
+    num_blocks: 4
+    emb_size_atom: 128
+    emb_size_edge: 256
+    emb_size_trip_in: 32
+    emb_size_trip_out: 32
+    emb_size_quad_in: 16
+    emb_size_quad_out: 16
+    emb_size_aint_in: 32
+    emb_size_aint_out: 32
+    emb_size_rbf: 8
+    emb_size_cbf: 8
+    emb_size_sbf: 16
+    num_before_skip: 1
+    num_after_skip: 1
+    num_concat: 1
+    num_atom: 2
+    num_output_afteratom: 2
+    num_atom_emb_layers: 1
+    num_global_out_layers: 1
+    cutoff: 8.0
+    max_neighbors: 25
+    regress_forces: false
+    direct_forces: false
+    use_pbc: true
+    otf_graph: true
+    extensive: true
+    quad_interaction: false
+    atom_edge_interaction: false
+    edge_atom_interaction: false
+    atom_interaction: false
+    num_elements: 100
+    activation: silu
+
+optim:
+  batch_size: 2
+  eval_batch_size: 2
+  num_workers: 8
+
+  lr_initial: 0.0001
+
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.01
+
+  eval_every: 1000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 9300    # epoch ~10
+    - 18600   # epoch ~20
+    - 27900   # epoch ~30
+
+  warmup_steps: 100
+  warmup_factor: 0.2
+
+  max_epochs: 50
+  clip_grad_norm: 2.0
+
+  ema_decay: 0.999

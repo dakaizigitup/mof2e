@@ -1,0 +1,89 @@
+# V9 Stage 1-B — atom semantics finetune
+#
+# Use after eSCN_v9_s1.yml converges. This phase loads the Stage 1-A best
+# checkpoint, lets atom auxiliary gradients flow into the backbone, and uses
+# smaller auxiliary weights for a short refinement run.
+
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/base.yml
+
+trainer: ocp_causal_v9
+
+task:
+  ddp_find_unused_parameters: true
+  ignore_checkpoint: false
+  strict_load: false
+
+model:
+  name: escn_v9_causal_s1
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 64
+  use_initial_embeddings: true
+  condition_dim: 2
+  condition_hidden_dim: 64
+
+  atom_type_n_classes: 100
+  atom_type_hidden_dim: 64
+  detach_atom_aux: false
+
+  backbone:
+    name: escn
+    feature_fusion: concat
+    activation_checkpoint: true
+
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    use_mof_global_features: false
+    mof_global_dim: 64
+
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    num_layers: 12
+    max_neighbors: 20
+    cutoff: 8.0
+    sphere_channels: 96
+    hidden_channels: 192
+    lmax_list: [6]
+    mmax_list: [2]
+    num_sphere_samples: 64
+    distance_function: "gaussian"
+    regress_forces: false
+    use_pbc: true
+    basis_width_scalar: 2.0
+    otf_graph: true
+    max_num_elements: 100
+
+causal:
+  version: v9
+  stage: 1
+  lambda_type: 0.015
+  lambda_mask: 0.02
+  mask_ratio: 0.15
+  mask_token_atomic_number: 0
+
+  # Update after Stage 1-A finishes
+  init_from: /home/dell/autodl-tmp/lorafair/checkpoints/STAGE1_V9_A_TIMESTAMP/best_checkpoint.pt
+
+optim:
+  batch_size: 1
+  eval_batch_size: 1
+  num_workers: 8
+  lr_initial: 0.0001
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.02
+  eval_every: 1000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 5000
+    - 8000
+  warmup_steps: 100
+  warmup_factor: 0.2
+  max_epochs: 5
+  clip_grad_norm: 5.0
+  ema_decay: 0.999

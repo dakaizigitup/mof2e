@@ -1,0 +1,87 @@
+# ==================  eqv2_31M_s2ef.yml  ==================
+# 任务：S2EF（能量 + 力）
+includes:
+  # 按实际工程调整；需确保其中已定义数据集、损失、评估指标等 S2EF 必备项
+  - configs/odac/s2ef/base.yml
+
+
+# ------------------ 模型 ------------------
+model:
+  name: equiformer_v2
+
+  # --- 图构建 ---
+  use_pbc:          true
+  regress_forces:   true     # 开启力预测
+  otf_graph:        true
+  max_neighbors:    20
+  max_radius:       8.0
+  max_num_elements: 100
+
+  # --- 主干网络参数 ---
+  num_layers:           8
+  sphere_channels:      128
+  attn_hidden_channels: 64
+  num_heads:            8
+  attn_alpha_channels:  64
+  attn_value_channels:  16
+  ffn_hidden_channels:  128
+  norm_type:            "layer_norm_sh"
+
+  lmax_list:        [4]
+  mmax_list:        [2]
+  grid_resolution:  18
+  num_sphere_samples: 128
+
+  edge_channels:           128
+  use_atom_edge_embedding: true
+  distance_function:       "gaussian"
+  num_distance_basis:      512      # 与预训练保持一致即可
+
+  attn_activation:  "silu"
+  use_s2_act_attn:  false
+  ffn_activation:   "silu"
+  use_gate_act:     false
+  use_grid_mlp:     true
+
+  alpha_drop:       0.1
+  drop_path_rate:   0.1
+  proj_drop:        0.0
+  weight_init:      "uniform"
+
+  # 统计信息（参考）
+  avg_num_nodes: 192.561
+  avg_degree:    21.024127419363214
+
+# ------------------ 优化器与调度 ------------------
+optim:
+  # 执行 / 资源
+  batch_size:              1
+  eval_batch_size:         1
+  grad_accumulation_steps: 1         # 有显存可适当增大
+  num_workers:             0
+
+  # 学习率
+  lr_initial: 0.0008                # S2EF 常用初始 LR
+
+  optimizer: AdamW
+  optimizer_params:
+    weight_decay: 0.2
+
+  # 调度器 —— 使用余弦退火
+  scheduler: CosineAnnealingLR
+  T_max: 2000000          # 迭代 step 周期，可按数据量估算
+  eta_min: 1.0e-6         # 最小 LR
+  # （可选）预热，由 base.yml 内的 warmup 逻辑或外部 wrapper 控制
+
+  # 训练过程控制
+  max_epochs:     30
+  clip_grad_norm: 100
+  ema_decay:      0.999
+
+  # 评估频率（以 step 计）
+  eval_every:     2500
+
+# ---------- SHAP 参数 ----------
+shap:
+  num_background: 5     # 背景样本
+  num_explain:   20     # 待解释样本

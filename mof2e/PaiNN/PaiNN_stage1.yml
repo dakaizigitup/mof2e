@@ -1,0 +1,83 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/PaiNN/base.yml
+
+# PaiNN Stage 1：nm + atom 特征全量训练，不加全局
+# 等价于 eSCN Stage 1 策略：让模型充分学习局部结构 + nm 条件
+#
+# 运行命令：
+#   python fairchem/main.py --config fairchem/mof2e/PaiNN/PaiNN_stage1.yml --mode train
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+
+model:
+  name: painn_global_weighted_energy_head
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 64
+
+  backbone:
+    name: painn_global
+
+    # --- nm / condition ---
+    base_nm_dim: 2
+    condition_hidden_dim: 64
+    nm_max_count: 15.0
+
+    # --- atom extra features: ON ---
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    # --- global features: OFF（Stage 1）---
+    use_mof_global_features: false
+
+    # --- FiLM adapter ---
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    # Stage 1：全量训练，无冻结
+    global_inject_layer: 3
+    global_layer_norm: true
+    freeze_first_n_layers: 0
+
+    # --- PaiNN params ---
+    hidden_channels: 128
+    num_layers: 6
+    num_rbf: 50
+    cutoff: 8.0
+    max_neighbors: 25
+    regress_forces: false
+    direct_forces: false
+    use_pbc: true
+    otf_graph: true
+    num_elements: 100
+
+optim:
+  batch_size: 8
+  eval_batch_size: 8
+  num_workers: 8
+
+  lr_initial: 0.0001
+
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.01
+
+  eval_every: 1000
+  lr_gamma: 0.3
+  # 3714样本 / batch8 = 465步/epoch
+  lr_milestones:
+    - 9300     # epoch ~20
+    - 18600    # epoch ~40
+
+  warmup_steps: 100
+  warmup_factor: 0.2
+
+  max_epochs: 50
+  clip_grad_norm: 5.0
+
+  ema_decay: 0.999

@@ -1,0 +1,77 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/base.yml   # 复用公共数据、优化器等通用字段
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+  ignore_checkpoint: true        # 若想从头训练
+
+model:
+  name: esen_mlp_energy_head      # eSEN 的能量头
+  reduce: sum
+
+  # nm 特征在 backbone 内部注入，下面两行仅为了向后兼容，可保留
+  condition_dim: 2
+  condition_hidden_dim: 64
+
+  backbone:
+    name: esen_backbone
+
+    # --- 显存相关 ---
+    activation_checkpointing: true     # 等价于 eSCN 的 activation_checkpoint
+
+    # --- 特征注入开关（均为 false 与 nm 特征）---
+    base_nm_dim: 2                     # 单样本 condition 维度
+    use_atom_extra_features: false
+    atom_extra_dim: 16                 # 固定为 16，保持一致
+    use_mof_global_features: false
+    mof_global_excel_path:
+    mof_global_dim: 32
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    # --- eSEN 主干核心超参（保持与 eSCN 配置一致）---
+    num_layers: 12
+    max_neighbors: 20
+    cutoff: 8.0
+    sphere_channels: 128
+    hidden_channels: 256
+    lmax: 2                # eSEN 用单个 lmax/mmax
+    mmax: 2
+    grid_resolution:        # 可为空；若想显存更低可设 72 或更小
+    num_distance_basis: 512
+    distance_function: gaussian
+    regress_forces: False
+    regress_stress: False
+    use_pbc: True
+    use_pbc_single: False
+    basis_width_scalar: 2.0
+    otf_graph: True
+    max_num_elements: 100
+
+optim:
+  batch_size: 4
+  eval_batch_size: 4
+  num_workers: 8
+
+  lr_initial: 0.0008
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: True
+    weight_decay: 0.2
+
+  eval_every: 5000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 218750
+    - 281250
+    - 343750
+
+  warmup_steps: 100
+  warmup_factor: 0.2
+
+  max_epochs: 50
+  clip_grad_norm: 20
+  ema_decay: 0.999

@@ -1,0 +1,109 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/PaiNN/base.yml
+
+# PaiNN Stage 2：加载 Stage 1 checkpoint，冻结前 3 层，注入全局特征
+# 遵循 eSCN 两阶段策略：
+#   Stage 1 → 局部结构 + nm + atom 充分收敛
+#   Stage 2 → 冻结前半段，在冻结边界注入全局，训练后半段 + global FiLM
+#
+# 当前对齐方案（mid-loop 注入 + partial freeze + FiLM，early-gain 版）：
+#   freeze_first_n_layers: 3 → 冻结 message/update_layers[0:3] + nm/atom FiLM
+#   global_inject_layer: 3   → 在第3层之前注入
+#   可训练：message/update_layers[3:6] + global_gamma/beta_mlp + energy head
+#   使用 eSCN 对齐的 film 注入：x = x * (1 + γ) + β
+#   重点观察前 250~2000 step 的早期收益，避免长训后过拟合掩盖提升
+#
+# 运行命令：
+#   python fairchem/main.py \
+#     --config fairchem/mof2e/PaiNN/PaiNN_stage2.yml \
+#     --mode train \
+#     --checkpoint /path/to/stage1/best_checkpoint.pt
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+  strict_load: false   # stage1 checkpoint 无 global encoder 权重，正常忽略
+
+model:
+  name: painn_global_weighted_energy_head
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 64
+  freeze_head: false   # 重新解冻输出头，让最后层 + head 一起适配 global
+
+  backbone:
+    name: painn_global
+
+    # --- nm / condition ---
+    base_nm_dim: 2
+    condition_hidden_dim: 64
+    nm_max_count: 15.0
+
+    # --- atom extra features: ON（须与 stage1 一致）---
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    # --- global features: ON ---
+    use_mof_global_features: true
+    mof_global_excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+    mof_global_dim: 64
+    mof_global_encoder_type: v2
+
+    mof_smi_ted_folder: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/smi_ted/smi_ted_light
+    mof_selfies_ted_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/selfies_ted/pretrained
+    mof_mhg_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/mhg_model/pickles/pytorch_model.bin
+    mof_smiles_cache_path: /home/dell/autodl-tmp/lorafair/data/mof_smiles_cache_v2.pt
+
+    # --- FiLM adapter ---
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    # 改成 post-loop 注入：先让最后两层完成局部更新，再直接修正最终标量表征
+    global_inject_layer: 6
+    global_layer_norm: true   # 稳定注入
+    global_inject_mode: gated  # 用门控残差避免 PaiNN 内部 LayerNorm 抹平 FiLM 信号
+
+    # 只冻结前 4 层，保留最后 2 层可训练
+    freeze_first_n_layers: 4
+
+    # --- PaiNN params（须与 stage1 完全一致）---
+    hidden_channels: 128
+    num_layers: 6
+    num_rbf: 50
+    cutoff: 8.0
+    max_neighbors: 25
+    regress_forces: false
+    direct_forces: false
+    use_pbc: true
+    otf_graph: true
+    num_elements: 100
+
+optim:
+  batch_size: 8
+  eval_batch_size: 8
+  num_workers: 8
+
+  # 新模块（global 分支 / head）主 LR；backbone 用更小 LR
+  lr_initial: 0.00002
+  backbone_lr_ratio: 0.5
+
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.01
+
+  eval_every: 500
+  lr_gamma: 0.3
+  lr_milestones:
+    - 3480    # epoch ~7.5
+    - 6960    # epoch ~15
+
+  warmup_steps: 300
+  warmup_factor: 0.05
+
+  max_epochs: 15
+  clip_grad_norm: 1.0
+
+  ema_decay: 0.999

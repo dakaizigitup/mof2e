@@ -1,0 +1,96 @@
+# Configuration file for training the EmbeddingBranchNet
+
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/base_lora.yml
+
+# 任务类型：仅预测能量
+mode: is2re
+
+# 与 eqv2_lora 相同的 Trainer 流程
+trainer: ocp_lora
+logger: wandb
+gpus: 0
+
+model:
+  name: embedding_branch_net
+
+  # --- 图构建（LMDB 无边信息，启用 OTF） ---
+  use_pbc: true
+  otf_graph: true
+  max_neighbors: 20
+  max_radius: 8.0
+  max_num_elements: 100
+
+  # --- 特征配置 ---
+  use_mof_global_features: true
+  mof_global_dim: 32
+  use_atom_extra_features: true
+  atom_feat_dim: 16
+
+  # --- 深层 ResMLP 配置（外部维度恒定为 hidden_dim） ---
+  hidden_dim: 512
+  resmlp_num_blocks: 12
+  resmlp_ff_mult: 4
+  resmlp_dropout: 0.1
+  # 兼容旧参：num_mlp_layers 可保留，但以 resmlp_num_blocks 为准
+
+  # --- 输出缩放 ---
+  avg_num_nodes: 192.561
+
+optim:
+  # --- 执行/资源 ---
+  batch_size: 4
+  eval_batch_size: 4
+  grad_accumulation_steps: 1
+  num_workers: 0
+
+  # --- 训练过程 ---
+  max_epochs: 100
+  clip_grad_norm: 10
+  ema_decay: 0.999
+  eval_every: 1000
+
+  # --- 单组优化器（顶层生效） ---
+  optimizer: AdamW
+  lr_initial: 1e-3
+  optimizer_params:
+    weight_decay: 0.02
+    betas: [0.9, 0.999]
+
+  # 禁用调度器（注意必须是字符串 "Null"）
+  scheduler: "Null"
+
+dataset:
+  format: lmdb
+  src: /home/dell/autodl-tmp/lorafair/data/is2r/filtered_train2
+  key_mapping:
+    y_relaxed: energy
+  transforms:
+    normalizer:
+      energy:
+        mean: -0.5845891562968939
+        stdev: 0.597721903644591
+
+val_dataset:
+  src: /home/dell/autodl-tmp/lorafair/data/is2r/filtered_val2
+
+outputs:
+  energy:
+    shape: 1
+    level: system
+
+loss_functions:
+  - energy:
+      coefficient: 4
+      fn: mae
+
+evaluation_metrics:
+  metrics:
+    energy:
+      - mae
+      - mse
+      - energy_within_threshold
+      - r2
+      - pearsonr
+      - spearmanr
+  primary_metric: energy_mae

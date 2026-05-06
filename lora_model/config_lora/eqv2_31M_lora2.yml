@@ -1,0 +1,129 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/base_lora2.yml
+
+trainer: ocp_lora
+
+model:
+  name: equiformer_v2_lora
+  # 启用力回归
+  regress_forces: true  # 从false改为true
+
+  # --- 图构建（LMDB 无边信息需 OTF） ---
+  use_pbc: true
+  otf_graph: true
+  max_neighbors: 20
+  max_radius: 8.0
+  max_num_elements: 100
+
+  # --- EqV2 主干（保持一致） ---
+  num_layers: 8
+  sphere_channels: 128
+  attn_hidden_channels: 64
+  num_heads: 8
+  attn_alpha_channels: 64
+  attn_value_channels: 16
+  ffn_hidden_channels: 128
+  norm_type: 'layer_norm_sh'
+
+  lmax_list: [4]
+  mmax_list: [2]
+  grid_resolution: 18
+  num_sphere_samples: 128
+
+  edge_channels: 128
+  use_atom_edge_embedding: true
+  distance_function: 'gaussian'
+  num_distance_basis: 600
+
+  attn_activation: 'silu'
+  use_s2_act_attn: false
+  ffn_activation: 'silu'
+  use_gate_act: false
+  use_grid_mlp: true
+
+  # --- 关闭所有 Dropout ---
+  alpha_drop: 0.05
+  drop_path_rate: 0.05
+  proj_drop: 0.05
+  weight_init: 'uniform'
+
+  # 缩放（与预训练一致）
+  avg_num_nodes: 192.561
+  avg_degree: 21.024127419363214
+
+  # --- 开启 LoRA / 增强LoRA（TRF） ---
+  use_lora: true
+  lora_rank: 16
+  lora_alpha: 64.0
+  lora_dropout: 0.0
+  use_enhanced_lora: true
+  trf_rank: 8
+  trf_alpha: 1.0
+
+  # --- 解冻输出头和力预测头 ---
+  train_scalar_path: false
+  train_energy_head: true
+  # 添加力预测头的训练配置
+  train_forces_head: true
+
+  # --- 全局/原子额外特征与注入 ---
+  use_mof_global_features: true
+  mof_global_dim: 8
+  use_atom_extra_features: true
+  atom_feat_out_dim: 32
+  feature_fusion: 'film'
+  adapter_hidden_dim: 128
+  adapter_dropout: 0.0
+  adapter_zero_init: true
+  apply_context_layernorm: true
+
+optim:
+  # --- 执行/资源 ---
+  batch_size: 1
+  eval_batch_size: 1
+  grad_accumulation_steps: 32
+  num_workers: 0
+
+  # --- 训练过程 ---
+  max_epochs: 30
+  clip_grad_norm: 1
+  ema_decay: 0.999
+  eval_every: 1000
+
+  # --- 全局优化器 ---
+  optimizer: AdamW
+  lr_initial: 3.0e-6
+  optimizer_params:
+    weight_decay: 0.05
+    betas: [0.9, 0.999]
+
+  scheduler: "LambdaLR"
+  scheduler_params:
+    lambda_type: cosine
+    warmup_factor: 0.2
+    warmup_epochs: 10
+    lr_min_factor: 0.01
+
+  # --- 组特定配置 ---
+  lora:
+    lr_initial: 3.0e-6
+    optimizer_params:
+      weight_decay: 0.05
+
+  mof_encoder:
+    lr_initial: 5.0e-5
+  atom_encoder:
+    lr_initial: 5.0e-5
+  film_adapter:
+    lr_initial: 5.0e-5
+  
+  # 输出头组: 包含能量和力预测头
+  output_head:
+    lr_initial: 1.0e-5
+    optimizer_params:
+      weight_decay: 0.05
+  # 添加力预测头的学习率配置
+  forces_head:
+    lr_initial: 1.0e-5
+    optimizer_params:
+      weight_decay: 0.05

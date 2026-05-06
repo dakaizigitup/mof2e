@@ -1,0 +1,125 @@
+
+# Eqv2_lora(trf+film+head):2025-12-14-17-21-04，screenlog_bestFile_head
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/base_lora.yml
+
+trainer: ocp_lora                      # LoRA 训练器
+
+# --------------------------- 模型 -----------------------------
+model:
+  name: equiformer_v2_lora
+
+  # --- 图构建 ---
+  use_pbc:          true
+  regress_forces:   false              # 只预测能量
+  otf_graph:        true
+  max_neighbors:    20
+  max_radius:       8.0
+  max_num_elements: 100
+
+  # --- Backbone ---
+  num_layers: 8
+  sphere_channels: 128
+  attn_hidden_channels: 64
+  num_heads: 8
+  attn_alpha_channels: 64
+  attn_value_channels: 16
+  ffn_hidden_channels: 128
+  norm_type: layer_norm_sh
+
+  lmax_list: [4]
+  mmax_list: [2]
+  grid_resolution: 18
+  num_sphere_samples: 128
+
+  edge_channels: 128
+  use_atom_edge_embedding: true
+  distance_function: gaussian
+  num_distance_basis: 600    # 与预训练对齐
+
+  attn_activation: silu
+  use_s2_act_attn: false
+  ffn_activation: silu
+  use_gate_act: false
+  use_grid_mlp: true
+
+  # Dropout/Init
+  alpha_drop: 0.05
+  drop_path_rate: 0.05
+  proj_drop: 0.05
+  weight_init: uniform
+
+  avg_num_nodes: 192.561
+  avg_degree:    21.024127419363214
+
+  # ---------- LoRA ----------
+  use_lora: true
+  lora_rank: 16
+  lora_alpha: 64.0
+  lora_dropout: 0.0
+  use_enhanced_lora: true
+  trf_rank: 8
+  trf_alpha: 1.0
+
+  # 仅解冻能量头
+  train_scalar_path: false
+  train_energy_head: true
+
+  # ---------- 额外特征 / Adapter ----------
+  use_mof_global_features: true
+  mof_global_dim: 8
+  use_atom_extra_features: true
+  atom_feat_out_dim: 32
+  feature_fusion: film          # film | gating | add | concat | cross_attn | loratrf
+  adapter_hidden_dim: 128
+  adapter_dropout: 0.0
+  adapter_zero_init: true
+  apply_context_layernorm: true
+
+# --------------------------- 优化器 ---------------------------
+optim:
+  # 运行资源
+  batch_size:              1
+  eval_batch_size:         1
+  grad_accumulation_steps: 1     # 累积 32 ⇒ 有效 batch 32
+  num_workers:             0
+
+  # 训练控制
+  max_epochs: 30
+  clip_grad_norm: 1
+  ema_decay: 0.999
+  eval_every: 1000
+
+  # 全局默认组（“other”）
+  optimizer: AdamW
+  lr_initial: 3.0e-6
+  optimizer_params:
+    betas:   [0.9, 0.999]
+    weight_decay: 0.05
+
+  scheduler: LambdaLR
+  scheduler_params:
+    lambda_type: cosine
+    warmup_factor: 0.2
+    warmup_epochs: 10          # 预热 10 个 epoch
+    lr_min_factor: 0.01
+
+  # ---------- 组特定学习率 ----------
+  lora:                       # LoRA 权重
+    lr_initial: 3.0e-6
+    optimizer_params:
+      weight_decay: 0.05
+
+  mof_encoder:                # MOF 全局特征编码器
+    lr_initial: 5.0e-5
+
+  atom_encoder:               # 原子额外特征编码器
+    lr_initial: 5.0e-5
+
+  film_adapter:               # FiLM 注入模块
+    lr_initial: 5.0e-5
+
+  output_head:                # 能量头
+    lr_initial: 5.0e-5
+    optimizer_params:
+      weight_decay: 0.05

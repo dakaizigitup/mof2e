@@ -1,0 +1,58 @@
+trainer: ocp
+
+model:
+  # ---- NM (Condition) 基础配置 ----
+  condition_dim: 2
+  condition_hidden_dim: 64
+  nm_max_count: 15.0
+
+dataset:
+  train:
+    format: lmdb
+    src: /home/dell/autodl-tmp/lorafair/data/mof2e/train
+
+    # 把每条样本的 y_relaxed(dict) 展开成多条样本：
+    # (MOF, condition=[n_h2o, n_co2]) -> energy
+    explode_y_relaxed:
+      enabled: true
+      src_key: y_relaxed
+      condition_key: condition
+      target_key: energy
+      drop_src_key: true
+
+    transforms:
+      normalizer:
+        energy:
+          mean: -0.5249277949333191
+          stdev: 0.943034291267395
+
+  val:
+    src: /home/dell/autodl-tmp/lorafair/data/mof2e/val
+
+    explode_y_relaxed:
+      enabled: true
+      src_key: y_relaxed
+      condition_key: condition
+      target_key: energy
+      drop_src_key: true
+
+logger: wandb
+
+outputs:
+  energy:
+    shape: 1
+    level: system
+
+loss_functions:
+  - energy:
+      fn: mae
+      coefficient: 4
+
+evaluation_metrics:
+  metrics:
+    energy:
+      - mae
+      - mse
+      - energy_within_threshold
+      - r2
+  primary_metric: energy_mae

@@ -1,0 +1,128 @@
+# V9 Stage 3 — mechanism decomposition + counterfactual consistency
+#
+# Stage 3 objective:
+#   L = L_energy + λ_cf L_counterfactual + λ_phys L_physics + λ_inv L_IRM
+
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/base.yml
+
+trainer: ocp_causal_v9
+
+task:
+  ddp_find_unused_parameters: true
+  ignore_checkpoint: false
+  strict_load: false
+
+model:
+  name: escn_v9_causal_s3
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 64
+  use_initial_embeddings: true
+  condition_dim: 2
+  condition_hidden_dim: 64
+
+  branch_dim: 128
+  coop_hidden_dim: 64
+  coop_max_count: 5.0
+  path_dropout_prob: 0.10
+  # R-5: freeze controls. Default strict freeze for both base + tri_encoder
+  # so S3 only trains CausalMixer + CooperativeHead (~100k params). If S3
+  # cannot fit, set freeze_tri_encoder=false to allow tri-branch fine-tune
+  # alongside the mixer (use small lr, the milestones below already do this).
+  freeze_base: true
+  freeze_tri_encoder: true
+
+  backbone:
+    name: escn
+    feature_fusion: concat
+    activation_checkpoint: true
+
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    use_mof_global_features: true
+    mof_global_excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+    mof_global_dim: 64
+    mof_global_encoder_type: v2
+    mof_smi_ted_folder: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/smi_ted/smi_ted_light
+    mof_selfies_ted_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/selfies_ted/pretrained
+    mof_mhg_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/mhg_model/pickles/pytorch_model.bin
+    mof_smiles_cache_path: /home/dell/autodl-tmp/lorafair/data/mof_smiles_cache_v2.pt
+
+    base_nm_dim: 2
+
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+    global_inject_layer: 6
+    global_inject_mode: film
+
+    num_layers: 12
+    max_neighbors: 20
+    cutoff: 8.0
+    sphere_channels: 96
+    hidden_channels: 192
+    lmax_list: [6]
+    mmax_list: [2]
+    num_sphere_samples: 64
+    distance_function: "gaussian"
+    regress_forces: false
+    use_pbc: true
+    basis_width_scalar: 2.0
+    otf_graph: true
+    max_num_elements: 100
+
+causal:
+  version: v9
+  stage: 3
+
+  lambda_inv: 0.1
+  # R-4: cf_*_direction defaults to global +1 unless the dataset provides
+  # per-sample direction fields. With a noisy +1 prior, λ_cf must be small;
+  # let physics + IRM carry S3, and treat counterfactual as a *gentle* nudge.
+  # Bump back to 0.2-0.3 only after P-5 logs show fallback ratio is low (i.e.
+  # most samples have real direction labels) OR you switch the hinge to
+  # |delta| ≥ cf_min_effect (sign-free).
+  lambda_cf: 0.05
+  lambda_phys: 0.5
+
+  cf_min_effect: 0.01
+
+  # Fallback directions for counterfactual hinge loss. If the batch contains
+  # graph-level fields named cf_motif_direction / cf_path_direction, trainer
+  # uses those sample-specific directions instead.
+  cf_motif_direction: 1.0
+  cf_path_direction: 1.0
+
+  # physics decomposition weights inside λ_phys block
+  lambda_phys_coop_zero: 1.0
+  lambda_phys_ext: 0.2
+  lambda_phys_vol: 0.2
+  ext_per_atom_mean: -0.005
+
+  # Update after Stage 2 finishes
+  init_from: /home/dell/autodl-tmp/lorafair/checkpoints/STAGE2_V9_TIMESTAMP/best_checkpoint.pt
+
+optim:
+  # R-1: keep bs=8 for the small IRM term that S3 still uses;
+  # S3 also runs 5 mixer passes per forward (baseline + 4 cf), so bs=8 is the
+  # compute/IRM-quality sweet spot.
+  batch_size: 8
+  eval_batch_size: 8
+  num_workers: 8
+  lr_initial: 0.0002
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.01
+  eval_every: 1000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 8000
+    - 14000
+  warmup_steps: 100
+  warmup_factor: 0.2
+  max_epochs: 20
+  clip_grad_norm: 5.0
+  ema_decay: 0.999

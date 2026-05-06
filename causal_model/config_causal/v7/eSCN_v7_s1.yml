@@ -1,0 +1,93 @@
+# V7 (CMG) Stage 1 — atom-level causal foundation (eSCN base + atom_extra V2)
+#
+# Trains from scratch. Adds atom_type supervision to ensure atom encoder
+# learns clear element-aware features.
+#
+# Loss: L_total = L_energy + λ_atom · L_atom_type + λ_ext · L_extensive
+
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/base.yml
+
+trainer: ocp_causal_v7
+
+task:
+  ddp_find_unused_parameters: true
+
+model:
+  name: escn_v7_causal_s1
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 64
+  use_initial_embeddings: true
+  condition_dim: 2
+  condition_hidden_dim: 64
+
+  # Stage 1 specific
+  atom_type_n_classes: 100
+  atom_type_hidden_dim: 64
+
+  backbone:
+    name: escn
+    feature_fusion: concat
+    activation_checkpoint: true
+
+    # ─── Stage 1: atom-level features ENABLED ───
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    # Stage 1: global features OFF
+    use_mof_global_features: false
+    mof_global_dim: 64
+
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    # eSCN core
+    num_layers: 12
+    max_neighbors: 20
+    cutoff: 8.0
+    sphere_channels: 128
+    hidden_channels: 256
+    lmax_list: [6]
+    mmax_list: [2]
+    num_sphere_samples: 128
+    distance_function: "gaussian"
+    regress_forces: false
+    use_pbc: true
+    basis_width_scalar: 2.0
+    otf_graph: true
+    max_num_elements: 100
+
+# ─── Causal training config ───
+# Note: causal_main.py force-overrides `trainer:` based on this block,
+# bypassing base.yml's `trainer: ocp`.
+causal:
+  version: v7
+  stage: 1
+  lambda_atom_type: 0.1
+  # L_extensive disabled — its formula compared normalized E_pred against
+  # unnormalized expected, causing training divergence at step ~2000+.
+  # Stage 1 main job is atom_type supervision + base energy MAE.
+  lambda_extensive: 0.0
+
+optim:
+  batch_size: 4
+  eval_batch_size: 4
+  num_workers: 8
+  lr_initial: 0.0004
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.2
+  eval_every: 1000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 28000
+    - 37000
+    - 43000
+  warmup_steps: 100
+  warmup_factor: 0.2
+  max_epochs: 25
+  clip_grad_norm: 5.0
+  ema_decay: 0.999

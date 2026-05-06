@@ -1,0 +1,96 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/MultiStream/base.yml
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+
+model:
+  name: multi_stream_fusion
+  
+  # Multi-stream fusion specific parameters
+  hidden_dim: 512
+  mof_emb_dim: 64
+  use_atom_embedding: true  # Set to true to enable atom composition stream (Stream 5)
+  
+  # Modular Expert Config
+  use_mole: true
+  use_feature_gating: false
+  use_flexibility: false
+  
+  # Pretrained eSCN checkpoint (optional)
+  pretrained_escn_path: /home/dell/autodl-tmp/lorafair/fairchem/checkpoints/2026-01-14-23-53-36/best_checkpoint.pt
+  freeze_escn: true
+  
+  # eSCN backbone configuration
+  escn_config:
+    # --- Memory optimization ---
+    activation_checkpoint: true
+    
+    # --- Disable atom/global features (handled by multi-stream) ---
+    use_atom_extra_features: false
+    atom_extra_dim: 128
+    
+    use_mof_global_features: false
+    mof_global_excel_path: "/home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx"
+    mof_global_dim: 64
+    
+    # --- eSCN core parameters ---
+    num_layers: 8  # Reduced from 12 to save memory
+    max_neighbors: 20
+    cutoff: 8.0
+    feature_fusion: film  # Revert to film to preserve L0 embedding (since we disabled extra features)
+    sphere_channels: 128
+    hidden_channels: 256
+    lmax_list: [6]
+    mmax_list: [2]
+    num_sphere_samples: 128
+    distance_function: "gaussian"
+    regress_forces: false
+    use_pbc: true
+    basis_width_scalar: 2.0
+    otf_graph: true
+    max_num_elements: 100
+
+optim:
+  batch_size: 4
+  eval_batch_size: 4
+  num_workers: 8
+  
+  # Layered learning rates for multi-stream model
+  lr_initial: 0.0002  # Reduced from 0.0005 for stability
+  backbone_lr_ratio: 0.1  # GNN uses 0.1x = 0.00002
+
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.3  # Increased from 0.1 for stronger regularization
+  
+  # Evaluation and checkpointing - more frequent eval
+  eval_every: 500  # Reduced from 1000
+  checkpoint_every: 5000
+  
+  # Learning rate schedule
+  lr_gamma: 0.3
+  lr_milestones:
+    - 218750
+    - 281250
+    - 343750
+  
+  warmup_steps: 200
+  warmup_factor: 0.2
+  
+  max_epochs: 50
+  clip_grad_norm: 1.0  # Reduced from 5.0 to suppress gradient explosions
+  ema_decay: 0.999
+
+# Logging
+logger: wandb
+wandb:
+  project: mof2e-multistream
+  name: multistream-weighted-chem
+  tags:
+    - multi-stream
+    - cross-attention
+    - mof-adsorption

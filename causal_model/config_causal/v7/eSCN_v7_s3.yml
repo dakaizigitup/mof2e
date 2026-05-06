@@ -1,0 +1,133 @@
+# V7 (CMG) Stage 3 — mechanism-level causal embedding
+#
+# Loads Stage 2 checkpoint, FREEZES the entire backbone (everything from S1+S2),
+# only trains new causal modules (AtomMaskHead + DualEnergyHead + CooperativeHead).
+#
+# Loss = L_pred + 0.5·L_inv + 1.0·L_S + 0.5·L_coop + 0.5·L_α_prior + 0.01·L_α_sparsity
+#
+# IMPORTANT: change `init_from` to point at your stage2 best_checkpoint.pt
+
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/base.yml
+
+trainer: ocp_causal_v7
+
+task:
+  ddp_find_unused_parameters: true
+  ignore_checkpoint: false
+  strict_load: false
+
+model:
+  name: escn_v7_causal_s3
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 64
+  use_initial_embeddings: true
+  condition_dim: 2
+  condition_hidden_dim: 64
+
+  # Stage 3 causal modules
+  mask_hidden_dim: 64
+  coop_hidden_dim: 32
+  coop_max_count: 5.0
+
+  backbone:
+    name: escn
+    feature_fusion: concat
+    activation_checkpoint: true
+
+    # Inherits all Stage 2 backbone settings (atom_extra + global features)
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    use_mof_global_features: true
+    mof_global_excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+    mof_global_dim: 64
+    mof_global_encoder_type: v2
+    mof_smi_ted_folder: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/smi_ted/smi_ted_light
+    mof_selfies_ted_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/selfies_ted/pretrained
+    mof_mhg_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/mhg_model/pickles/pytorch_model.bin
+    mof_smiles_cache_path: /home/dell/autodl-tmp/lorafair/data/mof_smiles_cache_v2.pt
+
+    base_nm_dim: 2
+
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+    global_inject_layer: 6
+    global_inject_mode: film
+
+    # Stage 3 freezes EVERYTHING via freeze_s2_weights
+    freeze_first_n_layers: 6
+
+    num_layers: 12
+    max_neighbors: 20
+    cutoff: 8.0
+    sphere_channels: 128
+    hidden_channels: 256
+    lmax_list: [6]
+    mmax_list: [2]
+    num_sphere_samples: 128
+    distance_function: "gaussian"
+    regress_forces: false
+    use_pbc: true
+    basis_width_scalar: 2.0
+    otf_graph: true
+    max_num_elements: 100
+
+# ─── Causal training config (Stage 3 — full 6-loss optimization) ───
+causal:
+  version: v7
+  stage: 3
+
+  # Energy prediction (main task)
+  lambda_pred: 1.0
+
+  # IRM invariance (carry-over from Stage 2)
+  lambda_inv: 0.5
+
+  # CaMol-style: context branch must predict prior (mean energy)
+  lambda_S: 1.0
+
+  # Cooperative effect explicit supervision
+  lambda_coop: 0.5
+
+  # Mechanism prior anchor (A4 cluster 4 + MHG dual-source)
+  # NOTE: this should DECAY over training — placeholder constant for now
+  lambda_prior: 0.5
+
+  # Mask sparsity regularization
+  lambda_reg: 0.01
+
+  # ⚠️ UPDATE THIS after Stage 2 finishes:
+  init_from: /home/dell/autodl-tmp/lorafair/checkpoints/STAGE2_TIMESTAMP/best_checkpoint.pt
+
+  # Aux file paths
+  env_labels_path: /home/dell/autodl-tmp/lorafair/fairchem/causal_model/prep_data/env_labels.parquet
+  prior_alpha_path: /home/dell/autodl-tmp/lorafair/fairchem/causal_model/prep_data/prior_alpha_per_atom.parquet
+  cooperative_target_path: /home/dell/autodl-tmp/lorafair/fairchem/causal_model/prep_data/cooperative_target.parquet
+
+optim:
+  batch_size: 4
+  eval_batch_size: 4
+  num_workers: 8
+
+  # Stage 3 only trains small causal modules — can use smaller LR
+  lr_initial: 0.0002
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.1
+
+  eval_every: 1000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 8000
+    - 12000
+
+  warmup_steps: 100
+  warmup_factor: 0.2
+
+  max_epochs: 15
+  clip_grad_norm: 5.0
+  ema_decay: 0.999

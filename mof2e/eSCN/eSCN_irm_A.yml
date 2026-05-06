@@ -1,0 +1,26 @@
+# IRM Phase 3 - 方案A：按 OMS 分两组（有/无 OMS）
+# 基于 Stage 2 best_checkpoint 继续 fine-tune
+# 运行命令示例（三个 lambda 依次跑）：
+#   python fairchem/main.py --config-yml=fairchem/mof2e/eSCN/eSCN_irm_A.yml --mode=train \
+#     --checkpoint=checkpoints/2026-03-28-12-30-56/best_checkpoint.pt
+
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/eSCN_global.yml
+
+trainer: ocp_irm
+
+irm:
+  lambda: 1.0e-4          # 可选: 1e-5 / 1e-4 / 5e-4
+  env_scheme: oms
+  excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+  min_env_size: 4
+
+optim:
+  max_epochs: 20
+  lr_initial: 1.0e-5
+  lr_milestones:
+    - 10000
+    - 16000
+  warmup_steps: 100
+  warmup_factor: 0.3
+  eval_every: 500

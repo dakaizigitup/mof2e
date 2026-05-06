@@ -1,0 +1,25 @@
+# IRM Phase 3 - 方案C：按吸附条件分两组（纯CO₂ / 含水体系）
+# 物理意义最强：DML 发现两组条件下 OMS 效应完全不同
+# 运行命令示例：
+#   python fairchem/main.py --config-yml=fairchem/mof2e/eSCN/eSCN_irm_C.yml --mode=train \
+#     --checkpoint=checkpoints/2026-03-28-12-30-56/best_checkpoint.pt
+
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/eSCN_global.yml
+
+trainer: ocp_irm
+
+irm:
+  lambda: 1.0e-4          # 可选: 1e-5 / 1e-4 / 5e-4
+  env_scheme: condition   # 直接从 batch.condition 读取，不需要 excel_path
+  min_env_size: 4
+
+optim:
+  max_epochs: 20
+  lr_initial: 1.0e-5
+  lr_milestones:
+    - 10000
+    - 16000
+  warmup_steps: 100
+  warmup_factor: 0.3
+  eval_every: 500

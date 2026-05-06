@@ -1,0 +1,86 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/DimeNet++/base.yml
+
+# DimeNet++ 基线：仅 nm 条件注入
+# 对应 SchNet_base.yml（无 atom 特征，无全局特征）
+#
+# 运行命令：
+#   python main.py --config mof2e/DimeNet++/DimeNet_base.yml --mode train
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+
+model:
+  name: dimenetplusplus_global_weighted_energy_head
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 64
+  use_initial_embeddings: false
+
+  backbone:
+    name: dimenetplusplus_global
+
+    # --- nm / condition ---
+    base_nm_dim: 2
+    condition_hidden_dim: 64
+    nm_max_count: 15.0
+
+    # --- atom features: OFF ---
+    use_atom_extra_features: false
+
+    # --- global features: OFF ---
+    use_mof_global_features: false
+
+    # --- FiLM adapter ---
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    global_inject_layer: 2
+    freeze_first_n_layers: 0
+
+    # --- DimeNet++ params ---
+    hidden_channels: 128
+    num_blocks: 4
+    int_emb_size: 64
+    basis_emb_size: 8
+    out_emb_channels: 256
+    num_spherical: 7
+    num_radial: 6
+    cutoff: 10.0
+    envelope_exponent: 5
+    num_before_skip: 1
+    num_after_skip: 2
+    num_output_layers: 3
+    max_num_elements: 100
+    use_pbc: true
+    otf_graph: true
+    regress_forces: false
+
+optim:
+  batch_size: 4
+  eval_batch_size: 4
+  num_workers: 8
+
+  lr_initial: 0.0001
+
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.01
+
+  eval_every: 1000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 9300    # epoch ~10
+    - 18600   # epoch ~20
+    - 27900   # epoch ~30
+
+  warmup_steps: 100
+  warmup_factor: 0.2
+
+  max_epochs: 50
+  clip_grad_norm: 2.0
+
+  ema_decay: 0.999

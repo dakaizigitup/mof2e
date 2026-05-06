@@ -1,0 +1,133 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/GemNet/base.yml
+
+# GemNet-OC Stage 2：加载 Stage 1 checkpoint，冻结前 2 块，注入全局特征
+#
+# 两阶段策略（同 eSCN）：
+#   Stage 1 → 局部结构 + nm 充分收敛（best_checkpoint.pt）
+#   Stage 2 → 冻结前半段，在冻结边界处注入全局，仅训练后半段 + global FiLM
+#
+# 冻结边界设计（num_blocks=4）：
+#   freeze_first_n_layers: 2  → 冻结 int_blocks[0,1] + out_blocks[0,1,2]
+#   global_inject_layer: 2    → 在 int_blocks[1] 之后注入（冻结层末尾）
+#   可训练：int_blocks[2,3] + out_blocks[3,4] + global_gamma/beta_mlp
+#
+# 运行命令：
+#   python main.py \
+#     --config mof2e/GemNet/GemNet_stage2.yml \
+#     --mode train \
+#     --checkpoint /path/to/stage1/best_checkpoint.pt
+#
+# 注意：strict_load=false 允许加载时忽略 stage2 新增的 global 模块权重缺失
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+  # 允许 checkpoint 中缺少新增的 global encoder / FiLM 权重
+  strict_load: false
+
+model:
+  name: gemnet_oc_global_weighted_energy_head
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 32
+  num_global_out_layers: 1
+
+  backbone:
+    name: gemnet_oc_global
+
+    # --- nm / condition ---
+    base_nm_dim: 2
+    condition_hidden_dim: 64
+    nm_max_count: 15.0
+
+    # --- atom extra features: ON（须与 stage1 一致）---
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    # --- global features: ON ---
+    use_mof_global_features: true
+    mof_global_excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+    mof_global_dim: 64
+    mof_global_encoder_type: v2
+
+    mof_smi_ted_folder: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/smi_ted/smi_ted_light
+    mof_selfies_ted_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/selfies_ted/pretrained
+    mof_mhg_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/mhg_model/pickles/pytorch_model.bin
+    mof_smiles_cache_path: /home/dell/autodl-tmp/lorafair/data/mof_smiles_cache_v2.pt
+
+    # --- FiLM adapter ---
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    # 注入在冻结边界（int_blocks[1] 之后）
+    global_inject_layer: 2
+    global_layer_norm: true
+
+    # 冻结前 2 个 block（局部结构已由 stage1 充分学习）
+    freeze_first_n_layers: 2
+
+    # --- GemNet-OC params（须与 stage1 完全一致，否则无法加载权重）---
+    num_spherical: 5
+    num_radial: 32
+    num_blocks: 4
+    emb_size_atom: 128
+    emb_size_edge: 256
+    emb_size_trip_in: 32
+    emb_size_trip_out: 32
+    emb_size_quad_in: 16
+    emb_size_quad_out: 16
+    emb_size_aint_in: 32
+    emb_size_aint_out: 32
+    emb_size_rbf: 8
+    emb_size_cbf: 8
+    emb_size_sbf: 16
+    num_before_skip: 1
+    num_after_skip: 1
+    num_concat: 1
+    num_atom: 2
+    num_output_afteratom: 2
+    num_atom_emb_layers: 1
+    num_global_out_layers: 1
+    cutoff: 8.0
+    max_neighbors: 25
+    regress_forces: false
+    direct_forces: false
+    use_pbc: true
+    otf_graph: true
+    extensive: true
+    quad_interaction: false
+    atom_edge_interaction: false
+    edge_atom_interaction: false
+    atom_interaction: false
+    num_elements: 100
+    activation: silu
+
+optim:
+  batch_size: 2
+  eval_batch_size: 2
+  num_workers: 8
+
+  # Stage 2 使用更低的 LR（fine-tune，不破坏 stage1 已学到的表示）
+  lr_initial: 0.00001
+
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.01
+
+  eval_every: 1000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 9300    # epoch ~10
+    - 18600   # epoch ~20
+
+  warmup_steps: 50
+  warmup_factor: 0.2
+
+  max_epochs: 25
+  clip_grad_norm: 1.0
+
+  ema_decay: 0.999

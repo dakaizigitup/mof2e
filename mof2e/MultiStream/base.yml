@@ -1,0 +1,59 @@
+trainer: ocp
+
+dataset:
+  train:
+    format: multi_stream  # Custom format for multi-stream model
+    src: /home/dell/autodl-tmp/lorafair/data/mof2e/train
+    
+    # MOF global embedding configuration
+    mof_embedding_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+    global_dim: 64
+    
+    # Explode y_relaxed to create (MOF, condition) -> energy samples
+    explode_y_relaxed:
+      enabled: true
+      src_key: y_relaxed
+      condition_key: condition
+      target_key: energy
+      drop_src_key: true
+    
+    transforms:
+      normalizer:
+        energy:
+          mean: -0.5249277949333191
+          stdev: 0.943034291267395
+
+  val:
+    format: multi_stream
+    src: /home/dell/autodl-tmp/lorafair/data/mof2e/val
+    
+    mof_embedding_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+    global_dim: 64
+    
+    explode_y_relaxed:
+      enabled: true
+      src_key: y_relaxed
+      condition_key: condition
+      target_key: energy
+      drop_src_key: true
+    
+logger: wandb
+
+outputs:
+  energy:
+    shape: 1
+    level: system
+
+loss_functions:
+  - energy:
+      fn: mae
+      coefficient: 1
+
+evaluation_metrics:
+  metrics:
+    energy:
+      - mae
+      - mse
+      - energy_within_threshold
+      - r2
+  primary_metric: energy_mae

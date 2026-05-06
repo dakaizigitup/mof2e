@@ -1,0 +1,362 @@
+EquiformerV2(
+  (sphere_embedding): Embedding(90, 128)
+  (distance_expansion): GaussianSmearing()
+  (SO3_rotation): ModuleList(
+    (0): SO3_Rotation(
+      (mapping): CoefficientMappingModule(lmax_list=[6], mmax_list=[6])
+    )
+  )
+  (mappingReduced): CoefficientMappingModule(lmax_list=[6], mmax_list=[2])
+  (SO3_grid): (6, 6)
+  (edge_degree_embedding): EdgeDegreeEmbedding(
+    (SO3_rotation): ModuleList(
+      (0): SO3_Rotation(
+        (mapping): CoefficientMappingModule(lmax_list=[6], mmax_list=[6])
+      )
+    )
+    (mappingReduced): CoefficientMappingModule(lmax_list=[6], mmax_list=[2])
+    (source_embedding): Embedding(90, 128)
+    (target_embedding): Embedding(90, 128)
+    (rad_func): RadialFunction(
+      (net): Sequential(
+        (0): Linear(in_features=856, out_features=128, bias=True)
+        (1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (2): SiLU()
+        (3): Linear(in_features=128, out_features=128, bias=True)
+        (4): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (5): SiLU()
+        (6): Linear(in_features=128, out_features=896, bias=True)
+      )
+    )
+  )
+  (blocks): ModuleList(
+    (0-11): 12 x TransBlockV2(
+      (norm_1): EquivariantRMSNormArraySphericalHarmonicsV2(lmax=6, num_channels=128, eps=1e-05, centering=True, std_balance_degrees=True)
+      (ga): SO2EquivariantGraphAttention(
+        (SO3_rotation): ModuleList(
+          (0): SO3_Rotation(
+            (mapping): CoefficientMappingModule(lmax_list=[6], mmax_list=[6])
+          )
+        )
+        (mappingReduced): CoefficientMappingModule(lmax_list=[6], mmax_list=[2])
+        (SO3_grid): (6, 6)
+        (source_embedding): Embedding(90, 128)
+        (target_embedding): Embedding(90, 128)
+        (so2_conv_1): SO2_Convolution(
+          (mappingReduced): CoefficientMappingModule(lmax_list=[6], mmax_list=[2])
+          (fc_m0): Linear(in_features=1792, out_features=1280, bias=True)
+          (so2_m_conv): ModuleList(
+            (0): SO2_m_Convolution(
+              (fc): Linear(in_features=1536, out_features=1536, bias=False)
+            )
+            (1): SO2_m_Convolution(
+              (fc): Linear(in_features=1280, out_features=1280, bias=False)
+            )
+          )
+          (rad_func): RadialFunction(
+            (net): Sequential(
+              (0): Linear(in_features=856, out_features=128, bias=True)
+              (1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+              (2): SiLU()
+              (3): Linear(in_features=128, out_features=128, bias=True)
+              (4): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+              (5): SiLU()
+              (6): Linear(in_features=128, out_features=4608, bias=True)
+            )
+          )
+        )
+        (alpha_norm): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+        (alpha_act): SmoothLeakyReLU(negative_slope=0.2)
+        (alpha_dropout): Dropout(p=0.1, inplace=False)
+        (s2_act): SeparableS2Activation(
+          (scalar_act): SiLU()
+          (s2_act): S2Activation(
+            (act): SiLU()
+          )
+        )
+        (so2_conv_2): SO2_Convolution(
+          (mappingReduced): CoefficientMappingModule(lmax_list=[6], mmax_list=[2])
+          (fc_m0): Linear(in_features=896, out_features=896, bias=True)
+          (so2_m_conv): ModuleList(
+            (0): SO2_m_Convolution(
+              (fc): Linear(in_features=768, out_features=1536, bias=False)
+            )
+            (1): SO2_m_Convolution(
+              (fc): Linear(in_features=640, out_features=1280, bias=False)
+            )
+          )
+        )
+        (proj): SO3_LinearV2(in_features=128, out_features=128, lmax=6)
+      )
+      (drop_path): GraphDropPath(drop_prob=0.05)
+      (norm_2): EquivariantRMSNormArraySphericalHarmonicsV2(lmax=6, num_channels=128, eps=1e-05, centering=True, std_balance_degrees=True)
+      (ffn): FeedForwardNetwork(
+        (SO3_grid): (6, 6)
+        (so3_linear_1): SO3_LinearV2(in_features=128, out_features=512, lmax=6)
+        (gating_linear): Linear(in_features=128, out_features=512, bias=True)
+        (s2_act): SeparableS2Activation(
+          (scalar_act): SiLU()
+          (s2_act): S2Activation(
+            (act): SiLU()
+          )
+        )
+        (so3_linear_2): SO3_LinearV2(in_features=512, out_features=128, lmax=6)
+      )
+    )
+  )
+  (norm): EquivariantRMSNormArraySphericalHarmonicsV2(lmax=6, num_channels=128, eps=1e-05, centering=True, std_balance_degrees=True)
+  (energy_block): FeedForwardNetwork(
+    (SO3_grid): (6, 6)
+    (so3_linear_1): SO3_LinearV2(in_features=128, out_features=512, lmax=6)
+    (gating_linear): Linear(in_features=128, out_features=512, bias=True)
+    (s2_act): SeparableS2Activation(
+      (scalar_act): SiLU()
+      (s2_act): S2Activation(
+        (act): SiLU()
+      )
+    )
+    (so3_linear_2): SO3_LinearV2(in_features=512, out_features=1, lmax=6)
+  )
+  (force_block): SO2EquivariantGraphAttention(
+    (SO3_rotation): ModuleList(
+      (0): SO3_Rotation(
+        (mapping): CoefficientMappingModule(lmax_list=[6], mmax_list=[6])
+      )
+    )
+    (mappingReduced): CoefficientMappingModule(lmax_list=[6], mmax_list=[2])
+    (SO3_grid): (6, 6)
+    (source_embedding): Embedding(90, 128)
+    (target_embedding): Embedding(90, 128)
+    (so2_conv_1): SO2_Convolution(
+      (mappingReduced): CoefficientMappingModule(lmax_list=[6], mmax_list=[2])
+      (fc_m0): Linear(in_features=1792, out_features=1280, bias=True)
+      (so2_m_conv): ModuleList(
+        (0): SO2_m_Convolution(
+          (fc): Linear(in_features=1536, out_features=1536, bias=False)
+        )
+        (1): SO2_m_Convolution(
+          (fc): Linear(in_features=1280, out_features=1280, bias=False)
+        )
+      )
+      (rad_func): RadialFunction(
+        (net): Sequential(
+          (0): Linear(in_features=856, out_features=128, bias=True)
+          (1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+          (2): SiLU()
+          (3): Linear(in_features=128, out_features=128, bias=True)
+          (4): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+          (5): SiLU()
+          (6): Linear(in_features=128, out_features=4608, bias=True)
+        )
+      )
+    )
+    (alpha_norm): LayerNorm((32,), eps=1e-05, elementwise_affine=True)
+    (alpha_act): SmoothLeakyReLU(negative_slope=0.2)
+    (s2_act): SeparableS2Activation(
+      (scalar_act): SiLU()
+      (s2_act): S2Activation(
+        (act): SiLU()
+      )
+    )
+    (so2_conv_2): SO2_Convolution(
+      (mappingReduced): CoefficientMappingModule(lmax_list=[6], mmax_list=[2])
+      (fc_m0): Linear(in_features=896, out_features=896, bias=True)
+      (so2_m_conv): ModuleList(
+        (0): SO2_m_Convolution(
+          (fc): Linear(in_features=768, out_features=1536, bias=False)
+        )
+        (1): SO2_m_Convolution(
+          (fc): Linear(in_features=640, out_features=1280, bias=False)
+        )
+      )
+    )
+    (proj): SO3_LinearV2(in_features=128, out_features=1, lmax=6)
+  )
+)
+
+
+
+Module:调试
+EquiformerV2(
+  (sphere_embedding): Embedding(100, 128)
+  (distance_expansion): GaussianSmearing()
+  (SO3_rotation): ModuleList(
+    (0): SO3_Rotation(
+      (mapping): CoefficientMappingModule(lmax_list=[4], mmax_list=[4])
+    )
+  )
+  (mappingReduced): CoefficientMappingModule(lmax_list=[4], mmax_list=[2])
+  (SO3_grid): (4, 4)
+  (edge_degree_embedding): EdgeDegreeEmbedding(
+    (SO3_rotation): ModuleList(
+      (0): SO3_Rotation(
+        (mapping): CoefficientMappingModule(lmax_list=[4], mmax_list=[4])
+      )
+    )
+    (mappingReduced): CoefficientMappingModule(lmax_list=[4], mmax_list=[2])
+    (source_embedding): Embedding(100, 128)
+    (target_embedding): Embedding(100, 128)
+    (rad_func): RadialFunction(
+      (net): Sequential(
+        (0): Linear(in_features=856, out_features=128, bias=True)
+        (1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (2): SiLU()
+        (3): Linear(in_features=128, out_features=128, bias=True)
+        (4): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+        (5): SiLU()
+        (6): Linear(in_features=128, out_features=640, bias=True)
+      )
+    )
+  )
+  (blocks): ModuleList(
+    (0-7): 8 x TransBlockV2(
+      (norm_1): EquivariantLayerNormArraySphericalHarmonics(lmax=4, num_channels=128, eps=1e-05, std_balance_degrees=True)
+      (ga): SO2EquivariantGraphAttention(
+        (SO3_rotation): ModuleList(
+          (0): SO3_Rotation(
+            (mapping): CoefficientMappingModule(lmax_list=[4], mmax_list=[4])
+          )
+        )
+        (mappingReduced): CoefficientMappingModule(lmax_list=[4], mmax_list=[2])
+        (SO3_grid): (4, 4)
+        (source_embedding): Embedding(100, 128)
+        (target_embedding): Embedding(100, 128)
+        (so2_conv_1): SO2_Convolution(
+          (mappingReduced): CoefficientMappingModule(lmax_list=[4], mmax_list=[2])
+          (fc_m0): Linear(in_features=1280, out_features=896, bias=True)
+          (so2_m_conv): ModuleList(
+            (0): SO2_m_Convolution(
+              (fc): Linear(in_features=1024, out_features=512, bias=False)
+            )
+            (1): SO2_m_Convolution(
+              (fc): Linear(in_features=768, out_features=384, bias=False)
+            )
+          )
+          (rad_func): RadialFunction(
+            (net): Sequential(
+              (0): Linear(in_features=856, out_features=128, bias=True)
+              (1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+              (2): SiLU()
+              (3): Linear(in_features=128, out_features=128, bias=True)
+              (4): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+              (5): SiLU()
+              (6): Linear(in_features=128, out_features=3072, bias=True)
+            )
+          )
+        )
+        (alpha_norm): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+        (alpha_act): SmoothLeakyReLU(negative_slope=0.2)
+        (alpha_dropout): Dropout(p=0.1, inplace=False)
+        (s2_act): SeparableS2Activation(
+          (scalar_act): SiLU()
+          (s2_act): S2Activation(
+            (act): SiLU()
+          )
+        )
+        (so2_conv_2): SO2_Convolution(
+          (mappingReduced): CoefficientMappingModule(lmax_list=[4], mmax_list=[2])
+          (fc_m0): Linear(in_features=320, out_features=640, bias=True)
+          (so2_m_conv): ModuleList(
+            (0): SO2_m_Convolution(
+              (fc): Linear(in_features=256, out_features=1024, bias=False)
+            )
+            (1): SO2_m_Convolution(
+              (fc): Linear(in_features=192, out_features=768, bias=False)
+            )
+          )
+        )
+        (proj): SO3_LinearV2(in_features=128, out_features=128, lmax=4)
+      )
+      (drop_path): GraphDropPath(drop_prob=0.1)
+      (norm_2): EquivariantLayerNormArraySphericalHarmonics(lmax=4, num_channels=128, eps=1e-05, std_balance_degrees=True)
+      (ffn): FeedForwardNetwork(
+        (SO3_grid): (4, 4)
+        (so3_linear_1): SO3_LinearV2(in_features=128, out_features=128, lmax=4)
+        (scalar_mlp): Sequential(
+          (0): Linear(in_features=128, out_features=128, bias=True)
+          (1): SiLU()
+        )
+        (grid_mlp): Sequential(
+          (0): Linear(in_features=128, out_features=128, bias=False)
+          (1): SiLU()
+          (2): Linear(in_features=128, out_features=128, bias=False)
+          (3): SiLU()
+          (4): Linear(in_features=128, out_features=128, bias=False)
+        )
+        (so3_linear_2): SO3_LinearV2(in_features=128, out_features=128, lmax=4)
+      )
+    )
+  )
+  (norm): EquivariantLayerNormArraySphericalHarmonics(lmax=4, num_channels=128, eps=1e-05, std_balance_degrees=True)
+  (energy_block): FeedForwardNetwork(
+    (SO3_grid): (4, 4)
+    (so3_linear_1): SO3_LinearV2(in_features=128, out_features=128, lmax=4)
+    (scalar_mlp): Sequential(
+      (0): Linear(in_features=128, out_features=128, bias=True)
+      (1): SiLU()
+    )
+    (grid_mlp): Sequential(
+      (0): Linear(in_features=128, out_features=128, bias=False)
+      (1): SiLU()
+      (2): Linear(in_features=128, out_features=128, bias=False)
+      (3): SiLU()
+      (4): Linear(in_features=128, out_features=128, bias=False)
+    )
+    (so3_linear_2): SO3_LinearV2(in_features=128, out_features=1, lmax=4)
+  )
+  (force_block): SO2EquivariantGraphAttention(
+    (SO3_rotation): ModuleList(
+      (0): SO3_Rotation(
+        (mapping): CoefficientMappingModule(lmax_list=[4], mmax_list=[4])
+      )
+    )
+    (mappingReduced): CoefficientMappingModule(lmax_list=[4], mmax_list=[2])
+    (SO3_grid): (4, 4)
+    (source_embedding): Embedding(100, 128)
+    (target_embedding): Embedding(100, 128)
+    (so2_conv_1): SO2_Convolution(
+      (mappingReduced): CoefficientMappingModule(lmax_list=[4], mmax_list=[2])
+      (fc_m0): Linear(in_features=1280, out_features=896, bias=True)
+      (so2_m_conv): ModuleList(
+        (0): SO2_m_Convolution(
+          (fc): Linear(in_features=1024, out_features=512, bias=False)
+        )
+        (1): SO2_m_Convolution(
+          (fc): Linear(in_features=768, out_features=384, bias=False)
+        )
+      )
+      (rad_func): RadialFunction(
+        (net): Sequential(
+          (0): Linear(in_features=856, out_features=128, bias=True)
+          (1): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+          (2): SiLU()
+          (3): Linear(in_features=128, out_features=128, bias=True)
+          (4): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+          (5): SiLU()
+          (6): Linear(in_features=128, out_features=3072, bias=True)
+        )
+      )
+    )
+    (alpha_norm): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+    (alpha_act): SmoothLeakyReLU(negative_slope=0.2)
+    (s2_act): SeparableS2Activation(
+      (scalar_act): SiLU()
+      (s2_act): S2Activation(
+        (act): SiLU()
+      )
+    )
+    (so2_conv_2): SO2_Convolution(
+      (mappingReduced): CoefficientMappingModule(lmax_list=[4], mmax_list=[2])
+      (fc_m0): Linear(in_features=320, out_features=640, bias=True)
+      (so2_m_conv): ModuleList(
+        (0): SO2_m_Convolution(
+          (fc): Linear(in_features=256, out_features=1024, bias=False)
+        )
+        (1): SO2_m_Convolution(
+          (fc): Linear(in_features=192, out_features=768, bias=False)
+        )
+      )
+    )
+    (proj): SO3_LinearV2(in_features=128, out_features=1, lmax=4)
+  )
+)

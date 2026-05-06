@@ -1,0 +1,54 @@
+trainer: ocp_lora
+
+dataset:
+  train:
+    format: lmdb
+    src: /home/dell/autodl-tmp/lorafair/data/is2r/filtered_train2
+    key_mapping:
+      y: energy  # 修改为未弛豫的能量
+      force: forces  # 添加力的映射
+    transforms:
+      normalizer:
+        energy:
+          mean: -0.5249277949333191
+          stdev: 0.943034291267395
+        forces:  # 添加力的标准化参数
+          mean: 0.0
+          stdev: 0.05  # 这个值需要根据您的数据集调整
+        
+  val:
+    src: /home/dell/autodl-tmp/lorafair/data/is2r/filtered_val2
+
+logger: wandb
+
+outputs:
+  energy:
+    shape: 1
+    level: system
+  forces:  # 添加力的输出配置
+    irrep_dim: 1
+    level: atom
+    train_on_free_atoms: True
+    eval_on_free_atoms: True
+
+loss_functions:
+  - energy:
+      fn: mae
+      coefficient: 4
+  - forces:  # 添加力的损失函数
+      fn: l2mae
+      coefficient: 100
+
+evaluation_metrics:
+  metrics:
+    energy:
+      - mae
+      - mse
+      - energy_within_threshold
+    forces:  # 添加力的评估指标
+      - mae
+      - cosine_similarity
+      - magnitude_error
+    misc:
+      - energy_forces_within_threshold
+  primary_metric: forces_mae  # 更新为主要评估指标

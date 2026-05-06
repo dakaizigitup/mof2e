@@ -1,0 +1,330 @@
+lmdb处理：
+处理：
+
+查看
+python /home/dell/autodl-tmp/lorafair/fairchem/lora_model/data_lora/inspect_aggregated_lmdb.py
+
+
+MOF2e（base）
+python fairchem/main.py \
+  --config-yml=fairchem/mof2e/eSCN/eSCN.yml \
+  --mode=train
+
+验证
+python fairchem/main.py \
+  --config-yml fairchem/mof2e/eSCN/eSCN.yml \
+  --mode validate \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-03-19-12-41-36/best_checkpoint.pt
+
+
+MOF2e（with_global）
+python fairchem/main.py \
+  --config-yml=fairchem/mof2e/eSCN/eSCN_global.yml\
+  --mode=train
+Base:2026-01-07-22-28-16
+Global:2026-01-07-22-04-48
+
+
+4——model
+python main.py \
+    --mode train \
+    --config-yml /home/dell/autodl-tmp/lorafair/fairchem/mof2e/MultiStream/MultiStream.yml \
+    --run-dir runs/multistream_bestR2
+
+
+验证
+MOF2e（base）
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/eSCN.yml \
+  --mode=validate \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/checkpoints/2026-02-05-18-37-52/best_checkpoint.pt
+
+MOF2e（with_global）
+python fairchem/main.py \
+  --config-yml=fairchem/mof2e/eSCN/eSCN_global.yml \
+  --mode=validate \
+  --checkpoint=checkpoints/2026-03-28-12-30-56/best_checkpoint.pt
+
+两阶段
+python fairchem/main.py \
+  --config-yml=fairchem/mof2e/eSCN/eSCN_global.yml \
+  --mode=train \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/checkpoints/2026-03-25-23-00-16/best_checkpoint.pt
+
+python fairchem/main.py \
+  --config-yml fairchem/mof2e/eSCN/eSCN_global.yml \
+  --mode validate \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-03-28-12-30-56/best_checkpoint.pt
+  
+
+因果分析
+# 方案A（OMS分组）
+python fairchem/main.py \
+  --config-yml=fairchem/mof2e/eSCN/eSCN_irm_A.yml \
+  --mode=train \
+  --checkpoint=checkpoints/2026-03-28-12-30-56/best_checkpoint.pt
+
+# 方案B（金属分组）
+python fairchem/main.py \
+  --config-yml=fairchem/mof2e/eSCN/eSCN_irm_B.yml \
+  --mode=train \
+  --checkpoint=checkpoints/2026-03-28-12-30-56/best_checkpoint.pt
+
+# 方案C（条件分组）
+python fairchem/main.py \
+  --config-yml=fairchem/mof2e/eSCN/eSCN_irm_C.yml \
+  --mode=train \
+  --checkpoint=checkpoints/2026-03-28-12-30-56/best_checkpoint.pt
+
+
+
+换backbone
+schnet
+1、base
+python fairchem/main.py \
+--config fairchem/mof2e/SchNet/SchNet_base.yml \
+--mode train
+
+2、stage1
+python fairchem/main.py \
+--config fairchem/mof2e/SchNet/SchNet_stage1.yml \
+--mode train
+
+python fairchem/main.py --config fairchem/mof2e/SchNet/SchNet_stage1.yml --mode validate \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-08-11-46-08/best_checkpoint.pt
+
+
+
+3、stage2
+python fairchem/main.py \
+--config fairchem/mof2e/SchNet/SchNet_stage2.yml\
+--mode train \
+--checkpoint /path/to/stage1/best_checkpoint.pt
+python fairchem/main.py --config fairchem/mof2e/SchNet/SchNet_stage2.yml --mode train \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-08-20-26-40/best_checkpoint.pt
+
+python fairchem/main.py --config fairchem/mof2e/SchNet/SchNet_stage2_finetune.yml --mode train \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-08-20-26-40/best_checkpoint.pt
+
+2、DimeNet++
+Base
+python fairchem/main.py --config fairchem/mof2e/DimeNet++/DimeNet_base.yml --mode train
+
+stage1
+python fairchem/main.py --config fairchem/mof2e/DimeNet++/DimeNet_stage1.yml --mode train
+
+
+stage2
+python fairchem/main.py --config fairchem/mof2e/DimeNet++/DimeNet_stage2.yml --mode train \
+  --checkpoint /fairchem/path/to/stage1/best_checkpoint.pt
+
+only global
+python fairchem/main.py --config fairchem/mof2e/DimeNet++/DimeNet_nm_global.yml --mode train
+
+
+3、GemNet
+Base
+python fairchem/main.py --config fairchem/mof2e/GemNet/GemNet_nm.yml --mode train
+
+only global
+python fairchem/main.py --config fairchem/mof2e/GemNet/GemNet_global.yml --mode train
+
+
+
+4、PaiNN
+Base
+python fairchem/main.py \
+  --config fairchem/mof2e/PaiNN/PaiNN_nm.yml \
+  --mode train
+
+stage1
+python fairchem/main.py \
+  --config fairchem/mof2e/PaiNN/PaiNN_stage1.yml \
+  --mode train
+
+stage2
+python fairchem/main.py \
+  --config fairchem/mof2e/PaiNN/PaiNN_stage2.yml \
+  --mode train \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-21-09-06-08/best_checkpoint.pt
+
+val
+python fairchem/main.py \
+  --config fairchem/mof2e/PaiNN/PaiNN_stage1.yml \
+  --mode validate \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-21-09-06-08/best_checkpoint.pt
+
+eqv2
+
+Base
+python fairchem/main.py \
+  --config fairchem/mof2e/EquiformerV2/EqV2_lora_nm.yml \
+  --mode train
+
+
+stage1
+python fairchem/main.py \
+  --config fairchem/mof2e/EquiformerV2/EqV2_lora_stage1.yml \
+  --mode train
+
+stage2
+python fairchem/main.py \
+  --config fairchem/mof2e/EquiformerV2/EqV2_lora_stage2.yml \
+  --mode train \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-21-21-24-16/best_checkpoint.pt
+
+# inj5
+python fairchem/main.py \
+  --config fairchem/mof2e/EquiformerV2/EqV2_lora_stage2_inj5.yml \
+  --mode train \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-21-21-24-16/best_checkpoint.pt
+
+# inj6
+python fairchem/main.py \
+  --config fairchem/mof2e/EquiformerV2/EqV2_lora_stage2_inj6.yml \
+  --mode train \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-21-21-24-16/best_checkpoint.pt
+bestVal
+python fairchem/main.py \
+  --config fairchem/mof2e/EquiformerV2/EqV2_lora_stage2_inj7.yml \
+  --mode validate \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-23-11-44-00/best_checkpoint.pt
+
+
+
+# inj7
+python fairchem/main.py \
+  --config fairchem/mof2e/EquiformerV2/EqV2_lora_stage2_inj7.yml \
+  --mode train \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-21-21-24-16/best_checkpoint.pt
+
+# inj8（注意：可能触发 lora 参数组为空的问题，先看日志）
+python fairchem/main.py \
+  --config fairchem/mof2e/EquiformerV2/EqV2_lora_stage2_inj8.yml \
+  --mode train \
+  --checkpoint /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-21-21-24-16/best_checkpoint.pt
+
+
+
+
+
+
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/configs/odac/is2re/eqv2_31M.yml \
+  --mode=train
+
+val:is2re
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/configs/odac/is2re/eqv2_31M.yml \
+  --mode=validate \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/Equiformer_V2_Direct.pt
+
+val:s2ef
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/configs/odac/s2ef/eqv2_31M.yml \
+  --mode=validate \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/Equiformer_V2_Direct.pt
+
+
+
+lora:is2e
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/eqv2_31M_lora_debug.yml \
+  --mode=train \
+  --amp \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/checkpoints/2025-10-25-15-45-04/best_checkpoint.pt
+validate
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/eqv2_31M_lora_debug.yml \
+  --mode=validate \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/checkpoints/2025-12-14-17-21-04/best_checkpoint.pt
+
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/Equiformer_V2_Direct.pt
+
+
+SHAP：base
+python main.py \
+  --mode shap \
+  --config-yml /home/dell/autodl-tmp/lorafair/fairchem/configs/odac/is2re/eqv2_31M.yml \
+  --checkpoint /home/dell/autodl-tmp/lorafair/fairchem/lora_model/Equiformer_V2_Direct.pt \
+  --output /home/dell/autodl-tmp/lorafair/resultSHAP/base
+
+
+可视化：
+# 先已运行 --mode shap 得到 shap_values.pt
+python main.py \
+  --mode vis \
+  --config-yml /home/dell/autodl-tmp/lorafair/fairchem/configs/odac/is2re/eqv2_31M.yml \
+  --output /home/dell/autodl-tmp/lorafair/resultSHAP/base
+
+SHAP：lora
+python main.py \
+  --mode shap-global \
+  --config-yml /home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/eqv2_31M_lora.yml \
+  --checkpoint /home/dell/autodl-tmp/lorafair/fairchem/checkpoints/2025-12-14-17-21-04/best_checkpoint.pt \
+  --output /home/dell/autodl-tmp/lorafair/resultSHAP/lora2
+
+
+
+lora:s2ef
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/eqv2_31M_lora2.yml \
+  --mode=train \
+  --amp \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/checkpoints/2025-10-25-15-45-04/best_checkpoint.pt
+validate
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/eqv2_31M_lora2.yml \
+  --mode=validate \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/checkpoints/2025-12-11-13-56-16/best_checkpoint.pt
+
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/Equiformer_V2_Direct.pt
+
+
+
+支网
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/Embedding_bratch.yml \
+  --mode=train
+
+
+
+2025-12-11-13-56-16：film (best)
+2025-12-12-17-01-52: film+16+
+
+2025-11-30-22-26-08：使用loratrf（best）
+
+
+
+lora02:10-31-15-25  
+lora03:11-01-17-06  gpu:0
+lora04:11-02-21-30  gpu:3
+
+lora001:2025-11-05-16-14-56  gpu:1   不使用全局特征(且学习率1e-3)
+lora002:2025-11-05-21-30-40  gpu:0   使用全局特征与原子级特征，通过+r*F的方式
+lora003:2025-11-05-22-13-20  gpu:2   使用全局特征与原子级特征，通过拼接再压缩的方式
+lora004:2025-11-06-15-42-56  gpu:0   使用全局特征与原子级特征，通过拼接(48)再压缩的方式train
+lora005:2025-11-06-17-16-48  gpu:1   使用全局特征与原子级特征，通过拼接(48)再压缩的方式train+val
+
+006：普通lora30轮
+lora007:2025-11-11-13-24-16  gpu:0   使用全局特征与原子级特征，通过注意力机制再压缩的方式train
+lora008:2025-11-11-21-37-04  gpu:1   使用全局特征与原子级特征，通过拼接再压缩的方式train+val
+
+
+
+escn
+lora
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/eSCN_lora.yml \
+  --mode=train \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/checkpoints/2025-10-25-15-45-04/best_checkpoint.pt
+validate
+python main.py \
+  --config-yml=/home/dell/autodl-tmp/lorafair/fairchem/lora_model/config_lora/eSCN_lora.yml \
+  --mode=validate \
+  --checkpoint=/home/dell/autodl-tmp/lorafair/fairchem/checkpoints/2025-10-30-23-06-40/best_checkpoint.pt
+
+因果分析
+python fairchem/causal_main.py   --config-yml fairchem/causal_model/config_causal/v9/eSCN_v9_s1.yml   --mode train
+
+

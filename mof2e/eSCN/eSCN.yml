@@ -1,0 +1,153 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/base.yml
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+model:
+  name: escn_weighted_energy_head
+  reduce: weighted_sum
+# weighted_sum/ sum
+  # PhAST weighted energy head specific params
+  weight_nn_hidden_dim: 64
+  use_initial_embeddings: true
+
+  # 兼容保留（nm 已在 backbone 注入使用）
+  condition_dim: 2
+  condition_hidden_dim: 64
+
+  backbone:
+    name: escn
+
+    # --- 显存相关 ---
+    feature_fusion: concat
+    activation_checkpoint: true
+
+    # --- 关闭原子/全局特征 ---
+    use_atom_extra_features: false
+    atom_extra_dim: 16
+
+    use_mof_global_features: false
+    mof_global_excel_path: 
+    mof_global_dim: 64
+
+    # 这时 context_dim = nm(2)
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    # --- eSCN 原有参数 ---
+    num_layers: 12
+    max_neighbors: 20
+    cutoff: 8.0
+    sphere_channels: 128
+    hidden_channels: 256
+    lmax_list: [6]
+    mmax_list: [2]
+    num_sphere_samples: 128
+    distance_function: "gaussian"
+    regress_forces: False
+    use_pbc: True
+    basis_width_scalar: 2.0
+    otf_graph: True
+    max_num_elements: 100
+
+optim:
+  batch_size: 4
+  eval_batch_size: 4
+  num_workers: 8
+
+  lr_initial: 0.0004
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: True
+    weight_decay: 0.2
+
+  eval_every: 1000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 218750
+    - 281250
+    - 343750
+
+  warmup_steps: 100
+  warmup_factor: 0.2
+
+  max_epochs: 25
+  clip_grad_norm: 5.0
+  ema_decay: 0.999
+
+
+# includes:
+#   - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/base.yml
+
+# trainer: ocp
+
+# task:
+#   ddp_find_unused_parameters: true
+
+# model:
+#   name: escn_energy_head
+#   reduce: sum
+
+#   backbone:
+#     name: escn
+#     activation_checkpoint: true
+
+#     # --- 新增：统一上下文 concat+MLP 注入（原子+全局都开）---
+#     use_atom_extra_features: false
+#     atom_extra_dim: 16
+
+#     use_mof_global_features: false
+#     mof_global_excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+#     mof_global_dim: 32
+    
+#     adapter_hidden_dim: 128
+#     adapter_dropout: 0.0
+#     adapter_zero_init: true
+
+#     # --- eSCN 核心参数（已为你优化显存） ---
+#     num_layers: 12
+#     max_neighbors: 20
+#     cutoff: 8.0
+    
+#     # ↓↓↓ 关键修改点 ↓↓↓
+#     sphere_channels: 96          # 从 128 降到 96
+#     hidden_channels: 192         # 从 256 降到 192
+#     lmax_list: [6]
+#     mmax_list: [2]
+#     num_sphere_samples: 64       # 从 128 降到 64 (这个对显存影响巨大)
+#     # ↑↑↑ 关键修改点 ↑↑↑
+
+#     distance_function: "gaussian"
+#     regress_forces: False
+#     use_pbc: True
+#     basis_width_scalar: 2.0
+#     otf_graph: True
+#     max_num_elements: 100
+
+# optim:
+#   batch_size: 1
+#   eval_batch_size: 1
+#   num_workers: 8
+
+#   lr_initial: 0.0008
+#   optimizer: AdamW
+#   optimizer_params:
+#     amsgrad: True
+#     weight_decay: 0.2
+
+#   eval_every: 5000
+#   lr_gamma: 0.3
+#   lr_milestones:
+#     - 218750
+#     - 281250
+#     - 343750
+
+#   warmup_steps: 100
+#   warmup_factor: 0.2
+
+#   max_epochs: 24 
+#   clip_grad_norm: 20
+#   ema_decay: 0.999

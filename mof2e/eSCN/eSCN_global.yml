@@ -1,0 +1,113 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/base.yml
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+  ignore_checkpoint: false
+  strict_load: false
+
+model:
+  name: escn_weighted_energy_head
+  reduce: weighted_sum
+  
+  # PhAST weighted energy head specific params
+  weight_nn_hidden_dim: 64
+  use_initial_embeddings: true
+
+  # 兼容保留（你现在 nm 已在 backbone 注入使用）
+  condition_dim: 2
+  condition_hidden_dim: 64
+
+  backbone:
+    name: escn
+
+    # --- 新增/修改的关键参数 ---
+    # 指定融合方式为 film (可选: film, gating, add, concat, phast)
+    feature_fusion: concat
+    
+    # 【新增】开启深层注入 (Inter-layer FiLM)
+    use_deep_injection: false
+
+    # --- 显存相关 ---
+    activation_checkpoint: true
+
+    # --- 原子/全局特征注入 ---
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2    # "v1" = AtomPropertyEncoder, "v2" = AtomPropertyEncoderV2
+
+    use_mof_global_features: true
+    mof_global_excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+    mof_global_dim: 64
+
+    # 编码器版本: "v1" = BiLSTM 原版, "v2" = 三模态预训练模型融合
+    mof_global_encoder_type: v2
+
+    # ── v2 专用路径（mof_global_encoder_type: v2 时才生效）──────────────────
+    mof_smi_ted_folder: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/smi_ted/smi_ted_light
+    mof_selfies_ted_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/selfies_ted/pretrained
+    mof_mhg_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/mhg_model/pickles/pytorch_model.bin
+    # SMILES 嵌入预计算缓存文件（第一次运行自动生成，之后直接读取）
+    mof_smiles_cache_path: /home/dell/autodl-tmp/lorafair/data/mof_smiles_cache_v2.pt
+    # ───────────────────────────────────────────────────────────────────────────
+
+    # nm(condition) 的单样本维度（建议显式写出来）
+    base_nm_dim: 2
+
+    # adapter / FiLM MLP 配置
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+    global_inject_layer: 6
+    # 中间层注入模式："film"（scale+shift）或 "attention"（cross-attention）
+    global_inject_mode: film
+
+    # 两阶段训练 Stage 2：冻结前 6 层（layer_blocks[0:6] + sphere_embedding + distance_expansion）
+    freeze_first_n_layers: 6
+
+    # --- eSCN 原有参数 ---
+    num_layers: 12
+    max_neighbors: 20
+    cutoff: 8.0
+    sphere_channels: 128
+    hidden_channels: 256
+    lmax_list: [6]
+    mmax_list: [2]
+    num_sphere_samples: 128
+    distance_function: "gaussian"
+    regress_forces: false
+    use_pbc: true
+    basis_width_scalar: 2.0
+    otf_graph: true
+    max_num_elements: 100
+
+optim:
+  batch_size: 4
+  eval_batch_size: 4
+  num_workers: 8
+
+  lr_initial: 0.0004
+  
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.2
+
+  eval_every: 1000
+  lr_gamma: 0.3
+  # 3714样本 / batch4 = 929步/epoch, 25epoch = 23225步总计
+  # 在 60% / 80% / 92% 处衰减（×0.3）
+  lr_milestones:
+    - 28000   # epoch ~30：0.0004 → 0.00012
+    - 37000   # epoch ~40：0.00012 → 0.000036
+    - 43000   # epoch ~46：0.000036 → ~0.000011
+
+  warmup_steps: 100
+  warmup_factor: 0.2
+
+  max_epochs: 50
+  clip_grad_norm: 5.0
+  
+  ema_decay: 0.999

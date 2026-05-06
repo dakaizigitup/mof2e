@@ -1,0 +1,104 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/SchNet/base.yml
+
+# 第二阶段：SchNet + MOF 全局特征注入（FiLM 注入位置：interaction block 3）
+# 加载第一阶段的 checkpoint，冻结 embedding + interactions[0:3]，训练全局 FiLM 模块。
+#
+# 运行命令：
+#   python main.py --config mof2e/SchNet/SchNet_stage2.yml --mode train \
+#     --checkpoint /path/to/stage1/best_checkpoint.pt
+
+trainer: ocp
+
+task:
+  ddp_find_unused_parameters: true
+  ignore_checkpoint: false
+  strict_load: false       # Stage-1 checkpoint lacks mof_global_encoder keys
+
+model:
+  name: schnet_global_weighted_energy_head
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 64
+  use_initial_embeddings: false
+
+  condition_dim: 2
+  condition_hidden_dim: 64
+
+  backbone:
+    name: schnet_global
+
+    # --- nm / condition ---
+    base_nm_dim: 2
+    condition_hidden_dim: 64
+    nm_max_count: 15.0
+
+    # --- atom features ---
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    # --- global features: ON for Stage 2 ---
+    use_mof_global_features: true
+    mof_global_excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+    mof_global_dim: 64
+    mof_global_encoder_type: v2
+
+    # V2 encoder paths
+    mof_smi_ted_folder: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/smi_ted/smi_ted_light
+    mof_selfies_ted_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/selfies_ted/pretrained
+    mof_mhg_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/mhg_model/pickles/pytorch_model.bin
+    mof_smiles_cache_path: /home/dell/autodl-tmp/lorafair/data/mof_smiles_cache_v2.pt
+
+    # --- FiLM adapter ---
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+
+    # Post-loop injection: after all 6 interactions, before energy head
+    # No distribution mismatch, all frozen interactions see same h as Stage1
+    global_inject_layer: 6
+    global_layer_norm: true
+
+    # Stage 2: freeze all interactions, only global FiLM + energy head are trained
+    freeze_first_n_layers: 6
+
+    # --- SchNet params ---
+    hidden_channels: 128
+    num_filters: 128
+    num_interactions: 6
+    num_gaussians: 50
+    cutoff: 8.0
+    readout: sum
+    max_num_elements: 100
+    use_pbc: true
+    otf_graph: true
+    regress_forces: false
+
+optim:
+  batch_size: 8
+  eval_batch_size: 8
+  num_workers: 8
+
+  lr_initial: 0.00005
+
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.01
+
+  eval_every: 1000
+  lr_gamma: 0.3
+  # 3714样本 / batch8 = 465步/epoch
+  # 模型在 epoch ~8-9 达到最优，提前降 LR 避免过拟合
+  lr_milestones:
+    - 4650    # epoch ~10
+    - 9300    # epoch ~20
+    - 13950   # epoch ~30
+
+  warmup_steps: 100
+  warmup_factor: 0.2
+
+  max_epochs: 50
+  clip_grad_norm: 1.0
+
+  ema_decay: 0.999

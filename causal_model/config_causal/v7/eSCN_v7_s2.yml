@@ -1,0 +1,121 @@
+# V7 (CMG) Stage 2 — motif-level causal augmentation
+#
+# Loads Stage 1 checkpoint, freezes first 6 layers + atom encoder + atom_type
+# head, adds mof_global_features (smi-ted+selfies-ted+MHG) + IRM invariance.
+#
+# Loss = L_energy + 0.05·L_atom_type (decayed) + 0.5·L_inv + 0.1·L_motif
+#
+# IMPORTANT: change `init_from` below to point at your stage1 best_checkpoint.pt
+
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/eSCN/base.yml
+
+trainer: ocp_causal_v7
+
+task:
+  ddp_find_unused_parameters: true
+  ignore_checkpoint: false
+  strict_load: false
+
+model:
+  name: escn_v7_causal_s2
+  reduce: weighted_sum
+  weight_nn_hidden_dim: 64
+  use_initial_embeddings: true
+  condition_dim: 2
+  condition_hidden_dim: 64
+
+  # Stage 2 specific
+  atom_type_n_classes: 100
+  atom_type_hidden_dim: 64
+  freeze_first_n_layers: 6  # freezes layer_blocks[0:6] + sphere_embedding + atom_encoder
+
+  backbone:
+    name: escn
+    feature_fusion: concat
+    activation_checkpoint: true
+
+    # ─── Stage 1 components (frozen via load_state_dict + freeze_s1_weights) ───
+    use_atom_extra_features: true
+    atom_extra_dim: 128
+    atom_encoder_type: v2
+
+    # ─── Stage 2: ENABLE global features (smi-ted + selfies-ted + MHG) ───
+    use_mof_global_features: true
+    mof_global_excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+    mof_global_dim: 64
+    mof_global_encoder_type: v2
+    mof_smi_ted_folder: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/smi_ted/smi_ted_light
+    mof_selfies_ted_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/selfies_ted/pretrained
+    mof_mhg_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/mhg_model/pickles/pytorch_model.bin
+    mof_smiles_cache_path: /home/dell/autodl-tmp/lorafair/data/mof_smiles_cache_v2.pt
+
+    base_nm_dim: 2
+
+    adapter_hidden_dim: 128
+    adapter_dropout: 0.0
+    adapter_zero_init: true
+    global_inject_layer: 6
+    global_inject_mode: film
+
+    freeze_first_n_layers: 6
+
+    # eSCN core
+    num_layers: 12
+    max_neighbors: 20
+    cutoff: 8.0
+    sphere_channels: 128
+    hidden_channels: 256
+    lmax_list: [6]
+    mmax_list: [2]
+    num_sphere_samples: 128
+    distance_function: "gaussian"
+    regress_forces: false
+    use_pbc: true
+    basis_width_scalar: 2.0
+    otf_graph: true
+    max_num_elements: 100
+
+# ─── Causal training config ───
+causal:
+  version: v7
+  stage: 2
+  # Carry-over: weakened atom_type supervision to maintain S1's atom encoder behavior
+  lambda_atom_type: 0.05
+  # NEW: IRM invariance across {pure_CO2, pure_H2O, mixed} environments
+  lambda_inv: 0.5
+  # NEW: motif consistency from MHG (currently uses motif boundaries from A4 cluster atoms)
+  lambda_motif: 0.1
+
+  # Path to S1 best checkpoint
+  # ⚠️ UPDATE THIS after Stage 1 finishes:
+  init_from: /home/dell/autodl-tmp/lorafair/checkpoints/2026-04-28-20-41-36/best_checkpoint.pt
+
+  # Aux file paths (default values; can override here)
+  env_labels_path: /home/dell/autodl-tmp/lorafair/fairchem/causal_model/prep_data/env_labels.parquet
+
+optim:
+  batch_size: 4
+  eval_batch_size: 4
+  num_workers: 8
+
+  # Stage 2 uses SAME schedule as eSCN_global (which trains stage 2 of original work)
+  lr_initial: 0.0004
+  optimizer: AdamW
+  optimizer_params:
+    amsgrad: true
+    weight_decay: 0.2
+
+  eval_every: 1000
+  lr_gamma: 0.3
+  lr_milestones:
+    - 28000
+    - 37000
+    - 43000
+
+  warmup_steps: 100
+  warmup_factor: 0.2
+
+  max_epochs: 50
+  clip_grad_norm: 5.0
+  ema_decay: 0.999

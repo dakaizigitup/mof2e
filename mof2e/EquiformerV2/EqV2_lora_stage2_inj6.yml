@@ -1,0 +1,158 @@
+includes:
+  - /home/dell/autodl-tmp/lorafair/fairchem/mof2e/EquiformerV2/base.yml
+
+# EquiformerV2-LoRA Stage 2：加载 Stage 1 checkpoint，加入 MOFGlobalEncoderV2
+# 参考 eSCN stage2 思路：nm + atom 已在 stage1 学好，stage2 主要训练 global FiLM
+#
+# 运行命令：
+#   python fairchem/main.py \
+#     --config fairchem/mof2e/EquiformerV2/EqV2_lora_stage2.yml \
+#     --mode train \
+#     --checkpoint /path/to/stage1/best_checkpoint.pt
+#
+# 注意：strict_load=false 允许加载时忽略新增的 mof_global_encoder 权重缺失
+
+trainer: ocp_lora
+
+task:
+  ddp_find_unused_parameters: true
+  strict_load: false   # stage1 checkpoint 无 mof_global_encoder keys
+  restart_stage2: true
+
+model:
+  name: equiformer_v2_lora
+  regress_forces: false
+
+  # --- 图构建 ---
+  use_pbc: true
+  otf_graph: true
+  max_neighbors: 20
+  max_radius: 8.0
+  max_num_elements: 100
+
+  # --- EqV2 主干（与预训练 ckpt + stage1 一致） ---
+  num_layers: 8
+  sphere_channels: 128
+  attn_hidden_channels: 64
+  num_heads: 8
+  attn_alpha_channels: 64
+  attn_value_channels: 16
+  ffn_hidden_channels: 128
+  norm_type: 'layer_norm_sh'
+
+  lmax_list: [4]
+  mmax_list: [2]
+  grid_resolution: 18
+  num_sphere_samples: 128
+
+  edge_channels: 128
+  use_atom_edge_embedding: true
+  distance_function: 'gaussian'
+  num_distance_basis: 600
+
+  attn_activation: 'silu'
+  use_s2_act_attn: false
+  ffn_activation: 'silu'
+  use_gate_act: false
+  use_grid_mlp: true
+
+  alpha_drop: 0.05
+  drop_path_rate: 0.05
+  proj_drop: 0.05
+  weight_init: 'uniform'
+
+  avg_num_nodes: 192.561
+  avg_degree: 21.024127419363214
+
+  # 注意：stage2 优先加载 --checkpoint 提供的 stage1 best checkpoint；
+  # pretrained_model_path 可保留作为 fallback（但实际加载会被 --checkpoint 覆盖）
+  pretrained_model_path: /home/dell/autodl-tmp/lorafair/fairchem/lora_model/ckpt_is2re/Equiformer_V2_Direct.pt
+
+  # --- LoRA（与 stage1 保持一致） ---
+  use_lora: true
+  lora_rank: 16
+  lora_alpha: 64.0
+  lora_dropout: 0.0
+  use_enhanced_lora: false
+
+  # Stage 2 对齐 eSCN：硬冻结前 6 个 block 的 LoRA（保留 stage1 学好的前半段）
+  # 可训练 LoRA 只剩 blocks[6:8]，配合中层 global 注入（inject_layer=6）
+  freeze_first_n_lora_blocks: 6
+
+  train_scalar_path: false
+  train_energy_head: true
+
+  # --- nm condition（与 stage1 一致） ---
+  use_nm_features: true
+  base_nm_dim: 2
+  condition_hidden_dim: 64
+  nm_max_count: 15.0
+
+  # --- atom 特征：ON（V2，与 stage1 一致） ---
+  use_atom_extra_features: true
+  atom_feat_out_dim: 128
+  atom_encoder_type: v2
+
+  # --- global 特征：ON（V2，三模态） ---
+  use_mof_global_features: true
+  mof_global_encoder_type: v2
+  mof_global_dim: 64
+  # 中层注入（eSCN 风格）：在 transformer block 6 之前注入，8 层模型的中点
+  global_inject_layer: 6
+  mof_global_excel_path: /home/dell/autodl-tmp/lorafair/data/MOF_embedding_all.xlsx
+  mof_smi_ted_folder: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/smi_ted/smi_ted_light
+  mof_selfies_ted_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/selfies_ted/pretrained
+  mof_mhg_path: /home/dell/anaconda3/envs/fairchem/lib/python3.10/site-packages/fairchem/materials-main/models/mhg_model/pickles/pytorch_model.bin
+  mof_smiles_cache_path: /home/dell/autodl-tmp/lorafair/data/mof_smiles_cache_v2.pt
+  mof_global_pretrained_device: cpu
+
+  feature_fusion: 'film'
+  adapter_hidden_dim: 128
+  adapter_dropout: 0.0
+  adapter_zero_init: true
+  apply_context_layernorm: true
+
+optim:
+  batch_size: 1
+  eval_batch_size: 1
+  grad_accumulation_steps: 8
+  num_workers: 4
+
+  # Stage 2 更短、更低 LR（fine-tune stage1）
+  max_epochs: 27
+  clip_grad_norm: 1.0
+  ema_decay: 0.999
+  eval_every: 500
+
+  optimizer: AdamW
+  lr_initial: 2.0e-6
+  optimizer_params:
+    weight_decay: 0.05
+    betas: [0.9, 0.999]
+
+  scheduler: "LambdaLR"
+  scheduler_params:
+    lambda_type: cosine
+    warmup_factor: 0.2
+    warmup_epochs: 3
+    lr_min_factor: 0.01
+
+  # 各参数组独立 LR：stage2 主要训练 mof_encoder 和 film_adapter
+  lora:
+    lr_initial: 5.0e-7       # stage2 LoRA 更小，避免破坏 stage1
+    optimizer_params:
+      weight_decay: 0.05
+
+  atom_encoder:
+    lr_initial: 5.0e-6       # 已在 stage1 训好，微调
+
+  mof_encoder:                # MOFGlobalEncoderV2（三个预训练分子模型默认冻结，只训练上层投影）
+    lr_initial: 8.0e-5
+
+  film_adapter:                # FiLM γ/β + context_ln + condition_encoder
+    lr_initial: 8.0e-5
+
+  scalar_path_modules:
+    lr_initial: 2.0e-6
+    optimizer_params:
+      weight_decay: 0.05
