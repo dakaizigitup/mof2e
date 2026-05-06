@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fairchem-mof2e"
+version = "0.1.0"
+description = "Modified fairchem-core (MOF/CO2-H2O cooperative adsorption fork)."
+requires-python = ">=3.10"
+# Runtime deps come from env.gpu.yml + requirements.txt to avoid duplicate
+# pinning. This pyproject only declares the package layout for editable
+# install; do NOT rely on it as the dependency source of truth.
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["fairchem*"]

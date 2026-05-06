@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+.codex
+.DS_Store
+
+# Build artifacts
+build/
+dist/
+
+# Large data — never commit
+*.tar.gz
+*.tar
+*.zip
+*.lmdb
+*.lmdb-lock
+*.pkl
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.hdf5
+*.parquet
+*.npz
+
+# Project-specific large dirs
+data/
+checkpoints/
+runs/
+logs/
+wandb/
+results/
+outputs/
+mlruns/
+
+# Materials / large bundled stuff
+materials-main.zip
+materials-main/
+fairchem_packed.tar.gz
+fairchem_env.tar.gz
+core.tar.gz
+
+# Images / binaries that don't belong in code repo
+*.png
+*.jpg
+*.pdf
+*.vsix

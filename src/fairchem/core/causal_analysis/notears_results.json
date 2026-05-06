@@ -1,0 +1,161 @@
+{
+  "notears_edges": [
+    {
+      "from": "LCD",
+      "to": "PLD",
+      "weight": 0.832041578533443
+    },
+    {
+      "from": "LCD",
+      "to": "ASA",
+      "weight": -0.10009545043894841
+    },
+    {
+      "from": "LCD",
+      "to": "lig1_length",
+      "weight": 0.23374019171068938
+    },
+    {
+      "from": "PLD",
+      "to": "OMS",
+      "weight": -0.19828696874886673
+    },
+    {
+      "from": "PLD",
+      "to": "lig1_length",
+      "weight": -0.1152153550384714
+    },
+    {
+      "from": "ASA",
+      "to": "lig1_length",
+      "weight": 0.11644462431503501
+    },
+    {
+      "from": "AV_VF",
+      "to": "LCD",
+      "weight": 0.4220007960667359
+    },
+    {
+      "from": "AV_VF",
+      "to": "ASA",
+      "weight": 0.8468303066528539
+    },
+    {
+      "from": "AV_VF",
+      "to": "AV_cm3g",
+      "weight": 0.9642367858276056
+    },
+    {
+      "from": "AV_VF",
+      "to": "OMS",
+      "weight": 0.3529169866890817
+    },
+    {
+      "from": "AV_VF",
+      "to": "lig1_length",
+      "weight": -0.9726097836309862
+    },
+    {
+      "from": "AV_VF",
+      "to": "energy_mean",
+      "weight": 0.3187686315864093
+    },
+    {
+      "from": "AV_cm3g",
+      "to": "LCD",
+      "weight": 0.30701920451040826
+    },
+    {
+      "from": "AV_cm3g",
+      "to": "ASA",
+      "weight": -0.1246695866690356
+    },
+    {
+      "from": "AV_cm3g",
+      "to": "OMS",
+      "weight": -0.15376977170925457
+    },
+    {
+      "from": "AV_cm3g",
+      "to": "lig1_length",
+      "weight": 0.945581280602484
+    },
+    {
+      "from": "AV_cm3g",
+      "to": "energy_mean",
+      "weight": -0.20382323593535925
+    },
+    {
+      "from": "OMS",
+      "to": "lig1_length",
+      "weight": 0.10171766026814918
+    },
+    {
+      "from": "OMS",
+      "to": "energy_mean",
+      "weight": -0.7944596328197248
+    }
+  ],
+  "domain_comparison": {
+    "OMS->LCD": {
+      "reason": "OMS 影响金属配位 → 影响孔腔大小",
+      "found": false,
+      "reversed": false,
+      "weight": null
+    },
+    "OMS->PLD": {
+      "reason": "OMS 影响金属配位 → 影响最小孔径",
+      "found": false,
+      "reversed": true,
+      "weight": -0.19828696874886673
+    },
+    "lig1_length->LCD": {
+      "reason": "配体越长 → 孔越大",
+      "found": false,
+      "reversed": true,
+      "weight": 0.23374019171068938
+    },
+    "lig1_length->PLD": {
+      "reason": "配体越长 → 孔径越大",
+      "found": false,
+      "reversed": true,
+      "weight": -0.1152153550384714
+    },
+    "lig1_length->ASA": {
+      "reason": "配体越长 → 表面积越大",
+      "found": false,
+      "reversed": true,
+      "weight": 0.11644462431503501
+    },
+    "PLD->energy_mean": {
+      "reason": "孔径决定分子能否进入 → 影响吸附",
+      "found": false,
+      "reversed": false,
+      "weight": null
+    },
+    "ASA->energy_mean": {
+      "reason": "表面积 → 吸附位点多少",
+      "found": false,
+      "reversed": false,
+      "weight": null
+    },
+    "AV_VF->energy_mean": {
+      "reason": "孔隙率 → 吸附容量上限",
+      "found": true,
+      "reversed": false,
+      "weight": 0.3187686315864093
+    },
+    "OMS->energy_mean": {
+      "reason": "OMS 直接提供强吸附位点",
+      "found": true,
+      "reversed": false,
+      "weight": -0.7944596328197248
+    },
+    "lig1_length->energy_mean": {
+      "reason": "配体化学性质影响吸附（间接）",
+      "found": false,
+      "reversed": false,
+      "weight": null
+    }
+  }
+}
