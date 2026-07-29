@@ -27,7 +27,7 @@ freetype-py @ file:///home/conda/feedstock_root/build_artifacts/freetype-py_1650
 frozenlist==1.8.0
 fsspec==2025.9.0
 gitdb==4.0.12
-GitPython==3.1.45
+GitPython==3.1.57
 greenlet @ file:///home/conda/feedstock_root/build_artifacts/greenlet_1756752081047/work
 grpcio==1.76.0
 hf-xet==1.1.10
