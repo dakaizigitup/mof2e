@@ -81,7 +81,7 @@ propcache==0.4.1
 protobuf==6.33.0
 psutil==7.1.1
 psycopg2-binary==2.9.11
-pycairo==1.28.0
+pycairo==1.29.0
 pycparser==2.23
 pydantic==2.12.3
 pydantic_core==2.41.4
