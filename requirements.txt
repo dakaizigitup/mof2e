@@ -8,7 +8,7 @@ ase==3.26.0
 ase_db_backends==0.10.0
 async-timeout==5.0.1
 attrs==25.4.0
-bibtexparser==1.4.3
+bibtexparser==2.0.1
 certifi==2025.10.5
 cffi==2.0.0
 charset-normalizer @ file:///home/conda/feedstock_root/build_artifacts/charset-normalizer_1760437218288/work
