@@ -13,7 +13,7 @@ certifi==2025.10.5
 cffi==2.0.0
 charset-normalizer @ file:///home/conda/feedstock_root/build_artifacts/charset-normalizer_1760437218288/work
 click==8.3.0
-cloudpickle==3.1.1
+cloudpickle==3.1.2
 clusterscope==0.0.18
 contourpy @ file:///home/conda/feedstock_root/build_artifacts/contourpy_1744743067588/work
 cryptography==46.0.3
